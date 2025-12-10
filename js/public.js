@@ -1,17 +1,22 @@
 // js/public.js
-// Logik för publika visningssidan (hämtar recensioner + (senare) karta)
+// Logik för publika visningssidan (hämtar recensioner)
 
 (function () {
   const cfg = window.RR_CONFIG || {};
   const baseUrl = cfg.backendBaseUrl;
 
+  const reviewsContainer = document.getElementById("reviews");
+
   if (!baseUrl) {
     console.error("[public] Saknar backendBaseUrl i RR_CONFIG");
-  } else {
-    console.log("[public] Backend base URL:", baseUrl);
+    if (reviewsContainer) {
+      reviewsContainer.innerHTML =
+        "<p>Konfiguration saknas (backendBaseUrl). Kontrollera js/config.js.</p>";
+    }
+    return; // Avbryt om vi inte har backend-url
   }
 
-  const reviewsContainer = document.getElementById("reviews");
+  console.log("[public] Backend base URL:", baseUrl);
 
   function renderReviews(reviews) {
     if (!reviewsContainer) return;
@@ -68,11 +73,11 @@
   }
 
   async function loadReviews() {
-    if (!baseUrl) return;
-
     try {
-      const res = await fetch(`${baseUrl}/api/reviews`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const url = `${baseUrl}/api/reviews`;
+      console.log("[public] Hämtar:", url);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Kunde inte hämta recensioner");
       const data = await res.json();
       console.log("[public] Reviews:", data);
       renderReviews(data);
@@ -85,28 +90,7 @@
     }
   }
 
-  // (valfritt) Exempel på att anropa places-nearby senare:
-  async function loadPlacesNearbyExample() {
-    if (!baseUrl) return;
-
-    // Fyll i dina riktiga koord senare
-    const lat = 56.67; // TODO: byt mot din hemkoordinat
-    const lng = 12.86;
-
-    try {
-      const url = `${baseUrl}/api/places-nearby?lat=${lat}&lng=${lng}`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      console.log("[public] Places nearby (example):", data);
-      // Här kan vi senare koppla mot Google Maps i sidan.
-    } catch (err) {
-      console.error("[public] loadPlacesNearbyExample error:", err);
-    }
-  }
-
   document.addEventListener("DOMContentLoaded", () => {
     loadReviews();
-    // loadPlacesNearbyExample(); // slå på när du vill testa
   });
 })();
