@@ -12,7 +12,6 @@ yarn-error.log*
 .idea/
 
 # Local config
-js/config.js
 
 # Build artefacts (future)
 dist/
