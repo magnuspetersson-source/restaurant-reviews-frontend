@@ -1,0 +1,19 @@
+# Node / tooling
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Mac
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+
+# Local config
+js/config.js
+
+# Build artefacts (future)
+dist/
+build/
