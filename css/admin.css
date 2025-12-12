@@ -1,8 +1,8 @@
  <style>
 
-    #map {
+    #rra-map {
       height: 70vh;      /* ungefär dubbelt mot typ 35vh */
-      min-height: 600px; /* så den inte blir pluttig */
+      min-height: 550px; /* så den inte blir pluttig */
     }
     
     /* Bild-thumbnail måste få växa i höjd */
