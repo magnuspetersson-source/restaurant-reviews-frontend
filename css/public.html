@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Restaurant Reviews – Public (Test)</title>
+    <link rel="stylesheet" href="./css/public.css" />
+  </head>
+  <body>
+    <div id="restaurant-reviews-public"></div>
+
+    <!-- Config för GitHub Pages-test (INGEN maps-key) -->
+    <script>
+      window.RR_CONFIG = {
+        backendBaseUrl: "https://restaurant-reviews-backend-xi.vercel.app",
+        homeLat: 56.67526326918155,
+        homeLng: 12.840977534456771
+      };
+    </script>
+
+    <script src="./js/public.js"></script>
+  </body>
+</html>
