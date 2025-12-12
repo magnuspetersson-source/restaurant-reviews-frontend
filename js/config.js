@@ -1,7 +1,11 @@
 // js/config.js
-// Frontend-konfig – här kan vi ha publika URL:er (inget hemligt).
-
 window.RR_CONFIG = {
-  // Sätt detta till din riktiga backend-URL från Vercel:
   backendBaseUrl: "https://restaurant-reviews-backend-xi.vercel.app",
+
+  // Admin / karta
+  homeLat: 56.67526326918155,
+  homeLng: 12.840977534456771,
+
+  // GOOGLE MAPS – frontend (publik, låst via referrer)
+  googleMapsApiKey: "AIzaSyDvkuMeVZtWDnIRvaR21_AO_7uB5Pendug",
 };
