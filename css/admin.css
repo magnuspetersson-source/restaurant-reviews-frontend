@@ -5,6 +5,35 @@
       min-height: 600px; /* så den inte blir pluttig */
     }
     
+    /* Bild-thumbnail måste få växa i höjd */
+    .rra-image-thumb {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      height: auto;
+      overflow: visible;
+      position: relative;
+    }
+    
+    /* Själva bilden */
+    .rra-image-thumb img {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 12px;
+    }
+    
+    /* Caption-input */
+    .rra-image-caption {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid rgba(0,0,0,0.18);
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 0.9rem;
+      background: rgba(255,255,255,0.75);
+    }
+    
     #restaurant-reviews-admin {
       font-family: inherit;
       margin: 2rem 0;

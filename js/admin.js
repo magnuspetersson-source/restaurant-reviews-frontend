@@ -258,31 +258,42 @@
     `;
   }
 
-  // ======= CSS INJECTION (karta högre + captionfält) =======
-  function injectAdminCssOnce() {
-    if (document.getElementById("rra-admin-extra-css")) return;
-    const style = document.createElement("style");
-    style.id = "rra-admin-extra-css";
-    style.textContent = `
-      /* Karta ~dubbelt så hög */
-      #rra-map { height: 70vh; min-height: 600px; }
-
-      /* Bildcaption input */
-      .rra-image-thumb input.rra-image-caption {
-        width: 100%;
-        margin-top: 6px;
-        padding: 8px 10px;
-        border: 1px solid rgba(0,0,0,0.18);
-        border-radius: 10px;
-        font: inherit;
-        font-size: 0.9rem;
-        background: rgba(255,255,255,0.75);
+  // ======= HELPERS =======
+  function loadCssOnce(href, id) {
+    if (id && document.getElementById(id)) return;
+    if ([...document.styleSheets].some(s => s.href === href)) return;
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = href;
+    if (id) link.id = id;
+    document.head.appendChild(link);
+  }
+  
+  function ensureQuillLoaded() {
+    return new Promise((resolve, reject) => {
+      if (window.Quill) return resolve();
+  
+      // Quill CSS (Snow theme) + JS
+      loadCssOnce("https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css", "rra-quill-css");
+  
+      const existing = document.querySelector('script[data-rra-quill="1"]');
+      if (existing) {
+        existing.addEventListener("load", () => resolve());
+        existing.addEventListener("error", reject);
+        return;
       }
-    `;
-    document.head.appendChild(style);
+  
+      const s = document.createElement("script");
+      s.src = "https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js";
+      s.async = true;
+      s.defer = true;
+      s.setAttribute("data-rra-quill", "1");
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error("Failed to load Quill"));
+      document.head.appendChild(s);
+    });
   }
 
-  // ======= HELPERS =======
   function setPlacesStatus(msg) {
     const el = document.getElementById("rra-places-status");
     if (el) el.textContent = msg || "";
@@ -1250,13 +1261,18 @@
 
   // ======= CALLBACK (ENDAST EN) =======
   window.initRestaurantReviewsAdmin = function () {
-    initAdminApp();
+    ensureQuillLoaded()
+      .then(() => initAdminApp())
+      .catch((e) => {
+        console.error("[admin] Quill kunde inte laddas:", e);
+        // Vi kör ändå appen så resten funkar (karta, listor, etc.)
+        initAdminApp();
+      });
   };
-
+  
   // ======= BOOT =======
   document.addEventListener("DOMContentLoaded", () => {
     renderShellOnce();
-    injectAdminCssOnce();
 
     const mapsKey = cfg.googleMapsApiKey;
     if (!mapsKey) {
