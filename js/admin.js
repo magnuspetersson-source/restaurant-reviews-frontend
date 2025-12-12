@@ -1,14 +1,16 @@
-// js/admin.js
-// RRA Admin – riktig UI + dynamisk Google Maps loader (en enda callback)
+// RRA Admin – UI + dynamisk Google Maps loader (en enda callback)
+// Uppdaterad: lokal-körning (backendBaseUrl fallback), högre karta, bildtexter (images[{url,caption}]) + bakåtkompat.
 
 ;(function () {
   // ======= KONFIG =======
   const cfg = window.RR_CONFIG || {};
-  const BACKEND_BASE_URL = cfg.backendBaseUrl;
+  const BACKEND_BASE_URL = typeof cfg.backendBaseUrl === "string" ? cfg.backendBaseUrl : "";
   const HOME_LAT = Number(cfg.homeLat);
   const HOME_LNG = Number(cfg.homeLng);
 
-  if (!BACKEND_BASE_URL) console.error("[admin] Missing RR_CONFIG.backendBaseUrl");
+  if (BACKEND_BASE_URL === "") {
+    console.info("[admin] RR_CONFIG.backendBaseUrl saknas/tomt → använder same-origin (bra för vercel dev).");
+  }
   if (!Number.isFinite(HOME_LAT) || !Number.isFinite(HOME_LNG)) {
     console.error("[admin] Missing/invalid RR_CONFIG.homeLat/homeLng");
   }
@@ -256,6 +258,30 @@
     `;
   }
 
+  // ======= CSS INJECTION (karta högre + captionfält) =======
+  function injectAdminCssOnce() {
+    if (document.getElementById("rra-admin-extra-css")) return;
+    const style = document.createElement("style");
+    style.id = "rra-admin-extra-css";
+    style.textContent = `
+      /* Karta ~dubbelt så hög */
+      #rra-map { height: 70vh; min-height: 600px; }
+
+      /* Bildcaption input */
+      .rra-image-thumb input.rra-image-caption {
+        width: 100%;
+        margin-top: 6px;
+        padding: 8px 10px;
+        border: 1px solid rgba(0,0,0,0.18);
+        border-radius: 10px;
+        font: inherit;
+        font-size: 0.9rem;
+        background: rgba(255,255,255,0.75);
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
   // ======= HELPERS =======
   function setPlacesStatus(msg) {
     const el = document.getElementById("rra-places-status");
@@ -306,9 +332,42 @@
     }
   }
 
+  // Normalisera bilddata så admin kan hantera både gamla och nya format
+  function normalizeReviewImages(review) {
+    if (!review || typeof review !== "object") return review;
+
+    // Nytt format: images = [{url, caption}]
+    if (Array.isArray(review.images)) {
+      review.images = review.images
+        .map((x) => {
+          if (!x) return null;
+          if (typeof x === "string") return { url: x, caption: "" };
+          const url = x.url || x.image_url || x.src || "";
+          const caption = x.caption || "";
+          if (!url) return null;
+          return { url, caption };
+        })
+        .filter(Boolean);
+    } else {
+      review.images = [];
+    }
+
+    // Gammalt format: image_urls = ["..."]
+    if (Array.isArray(review.image_urls) && review.image_urls.length) {
+      // Om images saknas/är tom, skapa images från image_urls
+      if (!review.images.length) {
+        review.images = review.image_urls.map((url) => ({ url, caption: "" }));
+      }
+    }
+
+    // Se till att image_urls alltid speglar urls (för bakåtkompat vid save/payload)
+    review.image_urls = review.images.map((x) => x.url);
+
+    return review;
+  }
+
   // ======= INIT =======
   function initAdminApp() {
-    // OBS: här ska vi INTE rendera om shell – det är redan gjort.
     initMap();
     initQuillCommentEditor();
     initFormHandlers();
@@ -463,31 +522,37 @@
     });
   }
 
+  function newEmptyReviewFromPlace(place, lat, lng, dist) {
+    return normalizeReviewImages({
+      place_id: place.place_id,
+      place_name: place.name || "",
+      restaurant_lat: lat,
+      restaurant_lng: lng,
+      home_distance_km: dist,
+      restaurant_type: "",
+      rating: null,
+      value_rating: null,
+      cost_level: null,
+      // bakåtkompat:
+      image_urls: [],
+      // nytt:
+      images: [],
+      comment: "",
+    });
+  }
+
   function onPlaceMarkerClick(marker) {
     const p = marker._place;
     const existingReview = marker._review;
 
     if (existingReview) {
-      currentReview = { ...existingReview };
+      currentReview = normalizeReviewImages({ ...existingReview });
     } else {
       const loc = p.geometry.location;
       const lat = loc.lat();
       const lng = loc.lng();
       const dist = haversineDistanceKm(HOME_LAT, HOME_LNG, lat, lng);
-
-      currentReview = {
-        place_id: p.place_id,
-        place_name: p.name || "",
-        restaurant_lat: lat,
-        restaurant_lng: lng,
-        home_distance_km: dist,
-        restaurant_type: "",
-        rating: null,
-        value_rating: null,
-        cost_level: null,
-        image_urls: [],
-        comment: "",
-      };
+      currentReview = newEmptyReviewFromPlace(p, lat, lng, dist);
     }
 
     updateFormFromState();
@@ -525,20 +590,8 @@
 
       const existingReview = allReviews.find((r) => r.place_id === place.place_id);
       currentReview = existingReview
-        ? { ...existingReview }
-        : {
-            place_id: place.place_id,
-            place_name: place.name || "",
-            restaurant_lat: lat,
-            restaurant_lng: lng,
-            home_distance_km: dist,
-            restaurant_type: "",
-            rating: null,
-            value_rating: null,
-            cost_level: null,
-            image_urls: [],
-            comment: "",
-          };
+        ? normalizeReviewImages({ ...existingReview })
+        : newEmptyReviewFromPlace(place, lat, lng, dist);
 
       updateFormFromState();
 
@@ -561,13 +614,16 @@
       const res = await fetch(BACKEND_BASE_URL + "/api/reviews");
       if (!res.ok) throw new Error("Failed to fetch reviews");
       const data = await res.json();
-      allReviews = data || [];
+      allReviews = (data || []).map((r) => normalizeReviewImages(r));
       renderReviewsList();
       renderReviewMarkers();
       loadNearbyRestaurants();
     } catch (err) {
       console.error("loadReviews error:", err);
-      if (listEl) listEl.innerHTML = '<p class="rra-muted" style="color:#b00020;">Kunde inte hämta recensioner.</p>';
+      if (listEl) {
+        listEl.innerHTML =
+          '<p class="rra-muted" style="color:#b00020;">Kunde inte hämta recensioner.</p>';
+      }
     }
   }
 
@@ -625,7 +681,7 @@
   function selectReview(id) {
     const r = allReviews.find((x) => x.id === id);
     if (!r) return;
-    currentReview = { ...r };
+    currentReview = normalizeReviewImages({ ...r });
     updateFormFromState();
     renderReviewsList();
 
@@ -671,6 +727,8 @@
       return;
     }
 
+    normalizeReviewImages(currentReview);
+
     if (nameEl) nameEl.textContent = currentReview.place_name || "Okänd restaurang";
     if (typeEl) typeEl.value = currentReview.restaurant_type || "";
     if (costEl) costEl.value = currentReview.cost_level != null ? String(currentReview.cost_level) : "";
@@ -694,6 +752,8 @@
 
   function collectFormToState() {
     if (!currentReview) currentReview = {};
+    normalizeReviewImages(currentReview);
+
     const typeEl = document.getElementById("rra-restaurant-type");
     const costEl = document.getElementById("rra-cost-level");
     const valEl = document.getElementById("rra-value-rating");
@@ -715,7 +775,14 @@
       currentReview.comment = html === "<p><br></p>" ? "" : html;
     }
 
-    if (!Array.isArray(currentReview.image_urls)) currentReview.image_urls = [];
+    // Säkerställ att images finns
+    if (!Array.isArray(currentReview.images)) currentReview.images = [];
+    currentReview.images = currentReview.images
+      .map((x) => (x && x.url ? { url: x.url, caption: x.caption || "" } : null))
+      .filter(Boolean);
+
+    // Bakåtkompat-fält
+    currentReview.image_urls = currentReview.images.map((x) => x.url);
   }
 
   // ======= FORM HANDLERS =======
@@ -743,6 +810,9 @@
       return;
     }
 
+    // Skicka både "images" (nytt) och "imageUrls" (bakåtkompat)
+    const imageUrls = Array.isArray(r.images) ? r.images.map((x) => x.url) : [];
+
     const payload = {
       placeId: r.place_id,
       placeName: r.place_name,
@@ -755,7 +825,12 @@
       homeDistanceKm: r.home_distance_km,
       restaurantLat: r.restaurant_lat,
       restaurantLng: r.restaurant_lng,
-      imageUrls: Array.isArray(r.image_urls) ? r.image_urls : [],
+
+      // bakåtkompat (backend idag)
+      imageUrls,
+
+      // nytt (för captions)
+      images: Array.isArray(r.images) ? r.images : [],
     };
 
     const isUpdate = !!r.id;
@@ -771,7 +846,7 @@
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error("Failed to save review");
-      const data = await res.json();
+      const data = normalizeReviewImages(await res.json());
 
       if (isUpdate) {
         const idx = allReviews.findIndex((x) => x.id === r.id);
@@ -896,6 +971,8 @@
       if (!files || !files.length) return;
       if (statusEl) statusEl.textContent = "";
 
+      normalizeReviewImages(currentReview);
+
       const progressContainer = document.getElementById("rra-upload-progress");
       const progressBar = document.getElementById("rra-upload-progress-bar");
 
@@ -917,8 +994,15 @@
         });
 
         const urls = Array.isArray(data.urls) ? data.urls : [];
-        if (!Array.isArray(currentReview.image_urls)) currentReview.image_urls = [];
-        currentReview.image_urls.push(...urls);
+
+        if (!Array.isArray(currentReview.images)) currentReview.images = [];
+        urls.forEach((url) => {
+          currentReview.images.push({ url, caption: "" });
+        });
+
+        // bakåtkompat:
+        currentReview.image_urls = currentReview.images.map((x) => x.url);
+
         updateImagesPreview();
 
         if (statusEl) statusEl.textContent = "Bilder uppladdade.";
@@ -945,23 +1029,39 @@
     if (!previewEl) return;
     previewEl.innerHTML = "";
 
-    if (!currentReview || !Array.isArray(currentReview.image_urls) || !currentReview.image_urls.length) return;
+    if (!currentReview) return;
+    normalizeReviewImages(currentReview);
 
-    currentReview.image_urls.forEach((url, index) => {
+    if (!Array.isArray(currentReview.images) || !currentReview.images.length) return;
+
+    currentReview.images.forEach((imgObj, index) => {
       const wrap = document.createElement("div");
       wrap.className = "rra-image-thumb";
 
       const img = document.createElement("img");
-      img.src = url;
-      img.alt = "Recensionsbild " + (index + 1);
+      img.src = imgObj.url;
+      img.alt = imgObj.caption || "Recensionsbild " + (index + 1);
       wrap.appendChild(img);
+
+      const caption = document.createElement("input");
+      caption.className = "rra-image-caption";
+      caption.type = "text";
+      caption.placeholder = "Bildtext (visas i frontend)";
+      caption.value = imgObj.caption || "";
+      caption.addEventListener("input", () => {
+        imgObj.caption = caption.value;
+        // håll bakåtkompat synkat
+        currentReview.image_urls = currentReview.images.map((x) => x.url);
+      });
+      wrap.appendChild(caption);
 
       const btn = document.createElement("button");
       btn.type = "button";
       btn.textContent = "×";
       btn.title = "Ta bort bild";
       btn.addEventListener("click", () => {
-        currentReview.image_urls.splice(index, 1);
+        currentReview.images.splice(index, 1);
+        currentReview.image_urls = currentReview.images.map((x) => x.url);
         updateImagesPreview();
       });
       wrap.appendChild(btn);
@@ -1150,13 +1250,13 @@
 
   // ======= CALLBACK (ENDAST EN) =======
   window.initRestaurantReviewsAdmin = function () {
-    // När maps är laddat: initiera hela admin-appen
     initAdminApp();
   };
 
   // ======= BOOT =======
   document.addEventListener("DOMContentLoaded", () => {
     renderShellOnce();
+    injectAdminCssOnce();
 
     const mapsKey = cfg.googleMapsApiKey;
     if (!mapsKey) {

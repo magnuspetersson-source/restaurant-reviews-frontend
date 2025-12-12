@@ -12,7 +12,10 @@ yarn-error.log*
 .idea/
 
 # Local config
+js/config.local.js
 
 # Build artefacts (future)
 dist/
 build/
+.vercel
+.env*.local

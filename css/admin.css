@@ -1,5 +1,10 @@
  <style>
 
+    #map {
+      height: 70vh;      /* ungefär dubbelt mot typ 35vh */
+      min-height: 600px; /* så den inte blir pluttig */
+    }
+    
     #restaurant-reviews-admin {
       font-family: inherit;
       margin: 2rem 0;
