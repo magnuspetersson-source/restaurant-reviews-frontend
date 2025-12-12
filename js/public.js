@@ -166,299 +166,72 @@
     document.head.appendChild(script);
   }
 
+  // ======= DIN BEFINTLIGA LOGIK (från din fil), med ändrad init-struktur =======
   ;(function () {
-  
-    // Marker-ikon (recenserad restaurang)
-    const ICON_REVIEWED =
-      "http://maps.google.com/mapfiles/ms/icons/red-dot.png";
-  
-    let map;
-    let infoWindow;
+    const ICON_REVIEWED = "http://maps.google.com/mapfiles/ms/icons/red-dot.png";
+
+    let map = null;
+    let infoWindow = null;
+
     let allReviews = [];
     let filteredReviews = [];
+
     let markers = [];
     let markerById = {};
-    let activeId = null;
+    let selectedMarker = null;
+
+    let overlayEl, overlayTitleEl, overlayMetaEl, overlayImagesEl, overlayCommentEl, overlayLinkEl;
+    let commentsListEl, commentFormEl, commentStatusEl;
+    let overlayOpen = false;
     let currentOverlayReviewId = null;
-    let selectedMarker = null; // för uppskalad marker
-  
-    // Overlay DOM
-    let overlayEl,
-      overlayTitleEl,
-      overlayMetaEl,
-      overlayRatingEl,
-      overlayCommentEl,
-      overlayImagesEl,
-      overlayDistanceEl,
-      overlayDateEl,
-      overlayLinkEl;
-  
-    // Galleri state
-    let galleryOverlayEl,
-      galleryImgEl,
-      galleryPrevBtn,
-      galleryNextBtn,
-      galleryCounterEl;
-    let currentGalleryImages = [];
-    let currentGalleryIndex = 0;
-  
+
+    let galleryOverlayEl, galleryImageEl, galleryCounterEl;
+    let galleryPrevBtn, galleryNextBtn;
+    let galleryImages = [];
+    let galleryIndex = 0;
+
     function apiGet(path) {
-      return fetch(BACKEND_BASE_URL + path).then((res) => {
-        if (!res.ok) throw new Error("GET " + path + " failed");
-        return res.json();
+      return fetch(BACKEND_BASE_URL + path).then((r) => {
+        if (!r.ok) throw new Error("GET " + path + " failed: " + r.status);
+        return r.json();
       });
     }
-  
+
+    function apiPost(path, body) {
+      return fetch(BACKEND_BASE_URL + path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }).then((r) => {
+        if (!r.ok) throw new Error("POST " + path + " failed: " + r.status);
+        return r.json();
+      });
+    }
+
     function clearMarkers() {
       markers.forEach((m) => m.setMap(null));
       markers = [];
       markerById = {};
       selectedMarker = null;
     }
-  
-    function boundsFromReviews(reviews) {
-      const bounds = new google.maps.LatLngBounds();
-      let hasAny = false;
-      reviews.forEach((r) => {
-        if (r.restaurant_lat != null && r.restaurant_lng != null) {
-          bounds.extend(new google.maps.LatLng(r.restaurant_lat, r.restaurant_lng));
-          hasAny = true;
-        }
-      });
-      return hasAny ? bounds : null;
-    }
-  
-    function ratingStars(n) {
-      if (!n) return "";
-      const full = "★".repeat(n);
-      const empty = "☆".repeat(5 - n);
-      return full + empty;
-    }
-  
-    function costToDollars(cost) {
-      if (!cost) return "";
-      return "$".repeat(cost);
-    }
-  
-    function googleMapsUrl(r) {
-      if (!r.place_id) return "#";
-      return (
-        "https://www.google.com/maps/place/?q=place_id:" +
-        encodeURIComponent(r.place_id)
-      );
-    }
-  
-    function populateTypeFilterOptions() {
-      const select = document.getElementById("rrp-filter-type");
-      if (!select) return;
-      const types = Array.from(
-        new Set(
-          allReviews
-            .map((r) => (r.restaurant_type || "").trim())
-            .filter((s) => s.length)
-        )
-      ).sort((a, b) => a.localeCompare(b, "sv"));
-      select.innerHTML = '<option value="">Alla</option>';
-      types.forEach((t) => {
-        const opt = document.createElement("option");
-        opt.value = t;
-        opt.textContent = t;
-        select.appendChild(opt);
-      });
-    }
-  
-    function applyFilters() {
-      const search = document
-        .getElementById("rrp-filter-search")
-        .value.toLowerCase()
-        .trim();
-      const typeValue = document.getElementById("rrp-filter-type").value;
-      const cost = document.getElementById("rrp-filter-cost").value;
-      const minRating = document.getElementById("rrp-filter-min-rating").value;
-  
-      filteredReviews = allReviews.filter((r) => {
-        if (search) {
-          const hay =
-            (r.place_name || "") +
-            " " +
-            (r.restaurant_type || "") +
-            " " +
-            (r.comment || "");
-          if (!hay.toLowerCase().includes(search)) return false;
-        }
-  
-        if (typeValue) {
-          if ((r.restaurant_type || "") !== typeValue) return false;
-        }
-  
-        if (cost) {
-          if (r.cost_level !== Number(cost)) return false;
-        }
-  
-        if (minRating) {
-          if (!r.rating || r.rating < Number(minRating)) return false;
-        }
-  
-        return true;
-      });
-  
-      applySort();
-      renderList();
-      renderMarkers();
-    }
-  
-    function applySort() {
-      const sort = document.getElementById("rrp-sort").value;
-      filteredReviews.sort((a, b) => {
-        const da = new Date(a.created_at).getTime();
-        const db = new Date(b.created_at).getTime();
-        const ra = a.rating || 0;
-        const rb = b.rating || 0;
-        const va = a.value_rating || 0;
-        const vb = b.value_rating || 0;
-        const distA = a.home_distance_km ?? Number.POSITIVE_INFINITY;
-        const distB = b.home_distance_km ?? Number.POSITIVE_INFINITY;
-  
-        switch (sort) {
-          case "date_asc":
-            return da - db;
-          case "date_desc":
-            return db - da;
-          case "rating_asc":
-            return ra - rb;
-          case "rating_desc":
-            return rb - ra;
-          case "distance_asc":
-            return distA - distB;
-          case "distance_desc":
-            return distB - distA;
-          case "value_desc":
-            return vb - va;
-          default:
-            return db - da;
-        }
-      });
-    }
-  
-    function renderList() {
-      const listEl = document.getElementById("rrp-list");
-      listEl.innerHTML = "";
-  
-      if (!filteredReviews.length) {
-        listEl.innerHTML = '<p class="rrp-muted">Inga restauranger matchar filtren.</p>';
-        return;
-      }
-  
-      filteredReviews.forEach((r) => {
-        const card = document.createElement("div");
-        card.className = "rrp-card";
-        card.id = "rrp-card-" + r.id;
-        card.dataset.id = r.id;
-  
-        if (activeId === r.id) card.classList.add("active");
-  
-        const topline = document.createElement("div");
-        topline.className = "rrp-topline";
-  
-        const distText =
-          r.home_distance_km != null
-            ? r.home_distance_km.toFixed(1) + " km från hem"
-            : "";
-        const dateText = r.created_at
-          ? new Date(r.created_at).toLocaleDateString("sv-SE")
-          : "";
-  
-        const tlLeft = document.createElement("span");
-        tlLeft.textContent = distText;
-  
-        const tlRight = document.createElement("span");
-        tlRight.textContent = dateText;
-  
-        topline.appendChild(tlLeft);
-        topline.appendChild(tlRight);
-  
-        const titleRow = document.createElement("div");
-        titleRow.className = "rrp-title-row";
-  
-        const nameEl = document.createElement("div");
-        nameEl.className = "rrp-name";
-        nameEl.textContent = r.place_name || "Okänd restaurang";
-  
-        const starsEl = document.createElement("div");
-        starsEl.className = "rrp-stars";
-        starsEl.textContent = ratingStars(r.rating || 0);
-  
-        titleRow.appendChild(nameEl);
-        titleRow.appendChild(starsEl);
-  
-        const meta = document.createElement("div");
-        meta.className = "rrp-meta";
-        const parts = [];
-        if (r.restaurant_type) parts.push(r.restaurant_type);
-        if (r.cost_level) parts.push(costToDollars(r.cost_level));
-        if (r.value_rating)
-          parts.push("Prisvärdhet " + r.value_rating + "/5");
-        meta.textContent = parts.join(" • ");
-  
-        const comment = document.createElement("div");
-        comment.className = "rrp-comment";
-        // Viktigt: rendera HTML från Quill
-        comment.innerHTML = r.comment || "";
-  
-        card.appendChild(topline);
-        card.appendChild(titleRow);
-        if (meta.textContent) card.appendChild(meta);
-        card.appendChild(comment);
-  
-        card.addEventListener("click", () => {
-          activeId = r.id;
-          renderList();
-          focusOnRestaurant(r.id);
-          openOverlay(r);
-        });
-  
-        listEl.appendChild(card);
-      });
-    }
-  
-    // Marker highlighting – samma princip som på adminsidan
+
     function setSelectedMarker(marker) {
       if (selectedMarker && selectedMarker !== marker) {
         try {
-          if (selectedMarker._baseIcon) {
-            selectedMarker.setIcon(selectedMarker._baseIcon);
-          }
-        } catch (e) {
-          console.warn("Kunde inte återställa ikon för tidigare marker:", e);
-        }
+          if (selectedMarker._baseIcon) selectedMarker.setIcon(selectedMarker._baseIcon);
+        } catch (e) {}
       }
-  
       selectedMarker = marker || null;
-  
-      if (marker && window.google && google.maps && google.maps.Size) {
-        const baseIcon = marker._baseIcon || ICON_REVIEWED;
-        let bigIcon;
-        if (typeof baseIcon === "string") {
-          bigIcon = {
-            url: baseIcon,
-            scaledSize: new google.maps.Size(40, 40),
-          };
-        } else {
-          bigIcon = Object.assign({}, baseIcon, {
-            scaledSize: new google.maps.Size(40, 40),
-          });
-        }
-        marker.setIcon(bigIcon);
-      }
+      // (Valfritt: förstora marker här om du vill i public också)
     }
-  
+
     function renderMarkers() {
       if (!map) return;
       clearMarkers();
-  
+
       filteredReviews.forEach((r) => {
         if (r.restaurant_lat == null && r.restaurant_lng == null) return;
-  
+
         const baseIcon = ICON_REVIEWED;
         const marker = new google.maps.Marker({
           map,
@@ -467,68 +240,137 @@
           icon: baseIcon,
         });
         marker._baseIcon = baseIcon;
-  
+
         markerById[r.id] = marker;
         markers.push(marker);
-  
+
         marker.addListener("click", () => {
-          activeId = r.id;
-          renderList();
-          scrollToCard(r.id);
-  
-          const distText =
-            r.home_distance_km != null
-              ? r.home_distance_km.toFixed(1) + " km från hem"
-              : "";
-          const ratingText = ratingStars(r.rating || 0);
-  
-          const html =
-            "<strong>" +
-            (r.place_name || "") +
-            "</strong><br>" +
-            (r.restaurant_type || "") +
-            (ratingText ? "<br>" + ratingText : "") +
-            (distText ? "<br>" + distText : "");
-  
-          infoWindow.setContent(html);
-          infoWindow.open(map, marker);
-  
+          openOverlay(r.id);
           setSelectedMarker(marker);
-          openOverlay(r);
         });
       });
-  
-      const bounds = boundsFromReviews(filteredReviews);
-      if (bounds) {
-        map.fitBounds(bounds);
-      } else {
-        map.setCenter({ lat: HOME_LAT, lng: HOME_LNG });
-        map.setZoom(13);
-      }
     }
-  
-    function scrollToCard(id) {
-      const el = document.getElementById("rrp-card-" + id);
+
+    function populateTypeFilterOptions() {
+      const el = document.getElementById("rrp-filter-type");
       if (!el) return;
-      const wrapper = document.querySelector(
-        "#restaurant-reviews-public .rrp-list-wrapper"
-      );
-      const top = el.offsetTop - 8;
-      wrapper.scrollTo({ top, behavior: "smooth" });
+
+      const types = new Set();
+      allReviews.forEach((r) => {
+        if (r.restaurant_type) types.add(r.restaurant_type);
+      });
+
+      const current = el.value || "";
+      el.innerHTML = `<option value="">Alla</option>`;
+      Array.from(types)
+        .sort((a, b) => a.localeCompare(b, "sv-SE"))
+        .forEach((t) => {
+          const opt = document.createElement("option");
+          opt.value = t;
+          opt.textContent = t;
+          el.appendChild(opt);
+        });
+      el.value = current;
     }
-  
+
+    function getFilters() {
+      const q = (document.getElementById("rrp-filter-search")?.value || "").trim().toLowerCase();
+      const type = document.getElementById("rrp-filter-type")?.value || "";
+      const cost = document.getElementById("rrp-filter-cost")?.value || "";
+      const minRating = document.getElementById("rrp-filter-min-rating")?.value || "";
+      const sort = document.getElementById("rrp-sort")?.value || "newest";
+      return { q, type, cost, minRating, sort };
+    }
+
+    function applyFiltersAndSort() {
+      const { q, type, cost, minRating, sort } = getFilters();
+
+      filteredReviews = allReviews.filter((r) => {
+        if (type && (r.restaurant_type || "") !== type) return false;
+        if (cost && String(r.cost_level || "") !== cost) return false;
+        if (minRating && Number(r.rating || 0) < Number(minRating)) return false;
+
+        if (q) {
+          const hay = [
+            r.place_name,
+            r.restaurant_type,
+            r.comment,
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      });
+
+      const byNewest = (a, b) => new Date(b.created_at) - new Date(a.created_at);
+      const byRating = (a, b) => (b.rating || 0) - (a.rating || 0);
+      const byDistance = (a, b) => (a.home_distance_km ?? 999999) - (b.home_distance_km ?? 999999);
+      const byName = (a, b) => (a.place_name || "").localeCompare(b.place_name || "", "sv-SE");
+
+      if (sort === "rating") filteredReviews.sort(byRating);
+      else if (sort === "distance") filteredReviews.sort(byDistance);
+      else if (sort === "name") filteredReviews.sort(byName);
+      else filteredReviews.sort(byNewest);
+    }
+
+    function renderList() {
+      const listEl = document.getElementById("rrp-list");
+      if (!listEl) return;
+
+      if (!filteredReviews.length) {
+        listEl.innerHTML = `<p class="rrp-muted">Inga träffar.</p>`;
+        return;
+      }
+
+      const wrap = document.createElement("div");
+      wrap.className = "rrp-list";
+
+      filteredReviews.forEach((r) => {
+        const item = document.createElement("div");
+        item.className = "rrp-item";
+        item.dataset.id = r.id;
+
+        const title = document.createElement("div");
+        title.className = "rrp-item-title";
+        title.textContent = r.place_name || "Okänd restaurang";
+
+        const meta = document.createElement("div");
+        meta.className = "rrp-item-meta";
+        const parts = [];
+        if (r.rating) parts.push(`${r.rating}/5`);
+        if (r.restaurant_type) parts.push(r.restaurant_type);
+        if (r.home_distance_km != null) parts.push(`${Number(r.home_distance_km).toFixed(1)} km`);
+        meta.textContent = parts.join(" • ");
+
+        item.appendChild(title);
+        item.appendChild(meta);
+
+        item.addEventListener("click", () => {
+          openOverlay(r.id);
+          focusOnRestaurant(r.id);
+        });
+
+        wrap.appendChild(item);
+      });
+
+      listEl.innerHTML = "";
+      listEl.appendChild(wrap);
+    }
+
     function focusOnRestaurant(id) {
       const r = filteredReviews.find((x) => x.id === id);
       if (!r) return;
-  
+
       const marker = markerById[id];
-      if (marker) {
+      if (marker && map) {
         map.panTo(marker.getPosition());
         map.setZoom(15);
         setSelectedMarker(marker);
       }
     }
-  
+
     async function loadReviews() {
       const listEl = document.getElementById("rrp-list");
       listEl.innerHTML = '<p class="rrp-muted">Hämtar restauranger...</p>';
@@ -536,334 +378,232 @@
         const data = await apiGet("/api/reviews");
         allReviews = data || [];
         populateTypeFilterOptions();
-        filteredReviews = [...allReviews];
-        applyFilters();
-      } catch (e) {
-        console.error(e);
-        listEl.innerHTML =
-          '<p class="rrp-muted">Kunde inte hämta restauranger just nu.</p>';
+
+        applyFiltersAndSort();
+        renderList();
+        renderMarkers();
+      } catch (err) {
+        console.error("loadReviews error:", err);
+        listEl.innerHTML = '<p class="rrp-muted" style="color:#b00020;">Kunde inte hämta recensioner.</p>';
       }
     }
-  
+
     function attachFilterEvents() {
-      [
-        "rrp-filter-search",
-        "rrp-filter-cost",
-        "rrp-filter-min-rating",
-      ].forEach((id) => {
+      const ids = ["rrp-filter-search", "rrp-filter-type", "rrp-filter-cost", "rrp-filter-min-rating", "rrp-sort"];
+      ids.forEach((id) => {
         const el = document.getElementById(id);
         if (!el) return;
-        const evt = el.tagName === "INPUT" ? "input" : "change";
-        el.addEventListener(evt, applyFilters);
-      });
-  
-      const typeEl = document.getElementById("rrp-filter-type");
-      if (typeEl) {
-        typeEl.addEventListener("change", applyFilters);
-      }
-  
-      document
-        .getElementById("rrp-sort")
-        .addEventListener("change", () => {
-          applySort();
+        el.addEventListener("input", () => {
+          applyFiltersAndSort();
           renderList();
           renderMarkers();
         });
+        el.addEventListener("change", () => {
+          applyFiltersAndSort();
+          renderList();
+          renderMarkers();
+        });
+      });
     }
-  
-    // OVERLAY LOGIK
+
     function initOverlay() {
       overlayEl = document.getElementById("rrp-overlay");
       overlayTitleEl = document.getElementById("rrp-overlay-title");
       overlayMetaEl = document.getElementById("rrp-overlay-meta");
-      overlayRatingEl = document.getElementById("rrp-overlay-rating");
-      overlayCommentEl = document.getElementById("rrp-overlay-comment");
       overlayImagesEl = document.getElementById("rrp-overlay-images");
-      overlayDistanceEl = document.getElementById("rrp-overlay-distance");
-      overlayDateEl = document.getElementById("rrp-overlay-date");
+      overlayCommentEl = document.getElementById("rrp-overlay-comment");
       overlayLinkEl = document.getElementById("rrp-overlay-link");
-  
+      commentsListEl = document.getElementById("rrp-comments-list");
+      commentFormEl = document.getElementById("rrp-comment-form");
+      commentStatusEl = document.getElementById("rrp-comment-status");
+
       const closeBtn = document.getElementById("rrp-overlay-close");
-      if (closeBtn) {
-        closeBtn.addEventListener("click", closeOverlay);
-      }
-      if (overlayEl) {
-        overlayEl.addEventListener("click", (e) => {
-          if (e.target === overlayEl) closeOverlay();
-        });
-      }
-      document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") {
-          if (galleryOverlayEl && galleryOverlayEl.style.display === "flex") {
-            closeGallery();
-          } else {
-            closeOverlay();
-          }
-        }
+      closeBtn?.addEventListener("click", closeOverlay);
+
+      overlayEl?.addEventListener("click", (e) => {
+        if (e.target?.dataset?.close === "1") closeOverlay();
       });
-  
-      const commentForm = document.getElementById("rrp-comment-form");
-      if (commentForm) {
-        commentForm.addEventListener("submit", onCommentSubmit);
-      }
+
+      commentFormEl?.addEventListener("submit", onCommentSubmit);
     }
-  
-    function openOverlay(r) {
-      if (!overlayEl) return;
-  
-      currentOverlayReviewId = r.id;
-  
-      overlayTitleEl.textContent = r.place_name || "Okänd restaurang";
-  
-      const metaParts = [];
-      if (r.restaurant_type) metaParts.push(r.restaurant_type);
-      if (r.cost_level) metaParts.push(costToDollars(r.cost_level));
-      if (r.value_rating)
-        metaParts.push("Prisvärdhet " + r.value_rating + "/5");
-      overlayMetaEl.textContent = metaParts.join(" • ");
-  
-      const stars = ratingStars(r.rating || 0);
-      overlayRatingEl.innerHTML = stars
-        ? `<div>${stars}</div><div style="font-size:0.8rem;opacity:0.75;">Helhetsbetyg ${r.rating}/5</div>`
-        : "";
-  
-      const distText =
-        r.home_distance_km != null
-          ? r.home_distance_km.toFixed(1) + " km från Ugerupsgatan"
-          : "";
-      overlayDistanceEl.textContent = distText;
-  
-      // Viktigt: rendera HTML från Quill
-      overlayCommentEl.innerHTML = r.comment || "";
-  
-      if (r.created_at) {
-        overlayDateEl.textContent =
-          "Recenserad: " +
-          new Date(r.created_at).toLocaleDateString("sv-SE", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-          });
-      } else {
-        overlayDateEl.textContent = "";
-      }
-  
-      // Bilder + galleri
-      overlayImagesEl.innerHTML = "";
-      const urls = Array.isArray(r.image_urls) ? r.image_urls : [];
-      if (urls.length) {
-        urls.forEach((url, index) => {
-          const thumb = document.createElement("div");
-          thumb.className = "rrp-overlay-thumb";
-          const img = document.createElement("img");
-          img.src = url;
-          img.alt = r.place_name || "Restaurangbild";
-          img.loading = "lazy";
-  
-          thumb.addEventListener("click", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            openGallery(urls, index);
-          });
-  
-          thumb.appendChild(img);
-          overlayImagesEl.appendChild(thumb);
-        });
-      } else {
-        overlayImagesEl.innerHTML =
-          '<p class="rrp-muted">Inga bilder tillagda ännu.</p>';
-      }
-  
-      const gUrl = googleMapsUrl(r);
-      overlayLinkEl.href = gUrl || "#";
-  
-      overlayEl.style.display = "flex";
-  
-      loadComments(r.id);
-    }
-  
-    function closeOverlay() {
-      if (!overlayEl) return;
-      overlayEl.style.display = "none";
-    }
-  
-    // GALLERI-LOGIK
+
     function initGalleryOverlay() {
       galleryOverlayEl = document.getElementById("rrp-gallery-overlay");
-      galleryImgEl = document.getElementById("rrp-gallery-img");
+      galleryImageEl = document.getElementById("rrp-gallery-image");
+      galleryCounterEl = document.getElementById("rrp-gallery-counter");
       galleryPrevBtn = document.getElementById("rrp-gallery-prev");
       galleryNextBtn = document.getElementById("rrp-gallery-next");
-      galleryCounterEl = document.getElementById("rrp-gallery-counter");
-  
-      const closeBtn = document.getElementById("rrp-gallery-close");
-      if (closeBtn) {
-        closeBtn.addEventListener("click", closeGallery);
-      }
-      if (galleryOverlayEl) {
-        galleryOverlayEl.addEventListener("click", (e) => {
-          if (e.target === galleryOverlayEl) closeGallery();
+
+      document.getElementById("rrp-gallery-close")?.addEventListener("click", closeGallery);
+
+      galleryOverlayEl?.addEventListener("click", (e) => {
+        if (e.target?.dataset?.close === "1") closeGallery();
+      });
+
+      galleryPrevBtn?.addEventListener("click", () => showGalleryIndex(galleryIndex - 1));
+      galleryNextBtn?.addEventListener("click", () => showGalleryIndex(galleryIndex + 1));
+    }
+
+    // Initiera allt som inte kräver Google Maps (så GitHub Pages kan testas utan maps-key)
+    function initPublicUi() {
+      attachFilterEvents();
+      initOverlay();
+      initGalleryOverlay();
+      loadReviews();
+    }
+
+    function openGallery(images, startIndex) {
+      galleryImages = images || [];
+      galleryIndex = Math.max(0, Math.min(startIndex || 0, galleryImages.length - 1));
+      showGalleryIndex(galleryIndex);
+      galleryOverlayEl?.setAttribute("aria-hidden", "false");
+    }
+
+    function showGalleryIndex(i) {
+      if (!galleryImages.length) return;
+      galleryIndex = (i + galleryImages.length) % galleryImages.length;
+      if (galleryImageEl) galleryImageEl.src = galleryImages[galleryIndex];
+      if (galleryCounterEl) galleryCounterEl.textContent = `${galleryIndex + 1}/${galleryImages.length}`;
+    }
+
+    function closeGallery() {
+      galleryOverlayEl?.setAttribute("aria-hidden", "true");
+      galleryImages = [];
+      galleryIndex = 0;
+    }
+
+    function openOverlay(id) {
+      const r = allReviews.find((x) => x.id === id);
+      if (!r) return;
+
+      currentOverlayReviewId = id;
+
+      overlayTitleEl.textContent = r.place_name || "Okänd restaurang";
+
+      const ratingEl = document.getElementById("rrp-overlay-rating");
+      const distanceEl = document.getElementById("rrp-overlay-distance");
+      const dateEl = document.getElementById("rrp-overlay-date");
+
+      if (ratingEl) ratingEl.textContent = r.rating ? `${r.rating}/5` : "";
+      if (distanceEl) distanceEl.textContent = r.home_distance_km != null ? `${Number(r.home_distance_km).toFixed(1)} km` : "";
+      if (dateEl) dateEl.textContent = r.created_at ? new Date(r.created_at).toLocaleDateString("sv-SE") : "";
+
+      // Bilder
+      const urls = Array.isArray(r.image_urls) ? r.image_urls : [];
+      overlayImagesEl.innerHTML = "";
+      if (urls.length) {
+        urls.forEach((url, idx) => {
+          const img = document.createElement("img");
+          img.src = url;
+          img.alt = "";
+          img.loading = "lazy";
+          img.addEventListener("click", () => openGallery(urls, idx));
+          overlayImagesEl.appendChild(img);
         });
       }
-      if (galleryPrevBtn) {
-        galleryPrevBtn.addEventListener("click", showPrevImage);
+
+      // Recensionstext (Quill-HTML)
+      overlayCommentEl.innerHTML = r.comment || "";
+
+      // Länk
+      if (overlayLinkEl) {
+        if (r.place_id) {
+          overlayLinkEl.href = `https://www.google.com/maps/place/?q=place_id:${encodeURIComponent(r.place_id)}`;
+          overlayLinkEl.style.display = "";
+        } else {
+          overlayLinkEl.href = "#";
+          overlayLinkEl.style.display = "none";
+        }
       }
-      if (galleryNextBtn) {
-        galleryNextBtn.addEventListener("click", showNextImage);
-      }
+
+      overlayEl?.setAttribute("aria-hidden", "false");
+      overlayOpen = true;
+
+      loadComments(id);
     }
-  
-    function openGallery(images, startIndex) {
-      if (!galleryOverlayEl || !galleryImgEl) return;
-      currentGalleryImages = images || [];
-      currentGalleryIndex = startIndex || 0;
-      if (!currentGalleryImages.length) return;
-  
-      updateGalleryImage();
-      galleryOverlayEl.style.display = "flex";
+
+    function closeOverlay() {
+      overlayEl?.setAttribute("aria-hidden", "true");
+      overlayOpen = false;
+      currentOverlayReviewId = null;
+      if (commentStatusEl) commentStatusEl.textContent = "";
     }
-  
-    function closeGallery() {
-      if (!galleryOverlayEl) return;
-      galleryOverlayEl.style.display = "none";
-    }
-  
-    function updateGalleryImage() {
-      if (!currentGalleryImages.length) {
-        closeGallery();
-        return;
-      }
-      const url = currentGalleryImages[currentGalleryIndex];
-      galleryImgEl.src = url;
-      galleryCounterEl.textContent =
-        currentGalleryIndex + 1 + " / " + currentGalleryImages.length;
-    }
-  
-    function showPrevImage() {
-      if (!currentGalleryImages.length) return;
-      currentGalleryIndex =
-        (currentGalleryIndex - 1 + currentGalleryImages.length) %
-        currentGalleryImages.length;
-      updateGalleryImage();
-    }
-  
-    function showNextImage() {
-      if (!currentGalleryImages.length) return;
-      currentGalleryIndex =
-        (currentGalleryIndex + 1) % currentGalleryImages.length;
-      updateGalleryImage();
-    }
-  
-    // Kommentarer
+
     async function loadComments(reviewId) {
-      const listEl = document.getElementById("rrp-comments-list");
-      const statusEl = document.getElementById("rrp-comment-status");
-      if (statusEl) statusEl.textContent = "";
-  
-      if (!listEl) return;
-      listEl.innerHTML = '<p class="rrp-muted">Hämtar kommentarer...</p>';
-  
+      if (!commentsListEl) return;
+      commentsListEl.innerHTML = `<p class="rrp-muted">Hämtar kommentarer...</p>`;
       try {
-        const res = await fetch(
-          BACKEND_BASE_URL + "/api/comments?reviewId=" + encodeURIComponent(reviewId)
-        );
-        if (!res.ok) throw new Error("Failed to load comments");
-        const data = await res.json();
-        renderComments(data || []);
+        const data = await apiGet(`/api/comments?review_id=${encodeURIComponent(reviewId)}&status=approved`);
+        const comments = data || [];
+        if (!comments.length) {
+          commentsListEl.innerHTML = `<p class="rrp-muted">Inga kommentarer ännu.</p>`;
+          return;
+        }
+
+        const wrap = document.createElement("div");
+        comments.forEach((c) => {
+          const item = document.createElement("div");
+          item.className = "rrp-comment";
+
+          const meta = document.createElement("div");
+          meta.className = "rrp-comment-meta";
+          const name = c.author_name || "Anonym";
+          const dateText = c.created_at ? new Date(c.created_at).toLocaleDateString("sv-SE") : "";
+          meta.textContent = `${name}${dateText ? " • " + dateText : ""}`;
+
+          const body = document.createElement("div");
+          body.className = "rrp-comment-body";
+          body.textContent = c.comment || "";
+
+          item.appendChild(meta);
+          item.appendChild(body);
+          wrap.appendChild(item);
+        });
+
+        commentsListEl.innerHTML = "";
+        commentsListEl.appendChild(wrap);
       } catch (err) {
         console.error("loadComments error:", err);
-        listEl.innerHTML =
-          '<p class="rrp-muted">Kunde inte hämta kommentarer just nu.</p>';
+        commentsListEl.innerHTML = `<p class="rrp-muted" style="color:#b00020;">Kunde inte hämta kommentarer.</p>`;
       }
     }
-  
-    function renderComments(comments) {
-      const listEl = document.getElementById("rrp-comments-list");
-      if (!listEl) return;
-  
-      listEl.innerHTML = "";
-  
-      if (!comments.length) {
-        listEl.innerHTML = '<p class="rrp-muted">Inga kommentarer ännu.</p>';
-        return;
-      }
-  
-      comments.forEach((c) => {
-        const item = document.createElement("div");
-        item.className = "rrp-comment-item";
-  
-        const meta = document.createElement("div");
-        meta.className = "rrp-comment-meta";
-  
-        const name = c.author_name || "Anonym";
-        const dateText = c.created_at
-          ? new Date(c.created_at).toLocaleDateString("sv-SE", {
-              year: "numeric",
-              month: "short",
-              day: "numeric",
-            })
-          : "";
-  
-        let statusLabel = "";
-        if (c.status === "pending") {
-          statusLabel = " • Väntar genomläsning";
-        } else if (c.status === "rejected") {
-          statusLabel = " • Ej publicerad";
-        }
-  
-        meta.textContent = name + (dateText ? " • " + dateText : "") + statusLabel;
-  
-        const body = document.createElement("div");
-        body.className = "rrp-comment-body";
-        body.textContent = c.comment || "";
-  
-        item.appendChild(meta);
-        item.appendChild(body);
-  
-        listEl.appendChild(item);
-      });
-    }
-  
+
     async function onCommentSubmit(e) {
       e.preventDefault();
       if (!currentOverlayReviewId) return;
-  
-      const nameInput = document.getElementById("rrp-comment-name");
-      const emailInput = document.getElementById("rrp-comment-email");
-      const textInput = document.getElementById("rrp-comment-text");
-      const statusEl = document.getElementById("rrp-comment-status");
+
       const submitBtn = document.getElementById("rrp-comment-submit");
-  
-      const authorName = nameInput.value.trim();
-      const authorEmail = emailInput.value.trim();
-      const comment = textInput.value.trim();
-  
-      if (!authorName || !comment) {
-        statusEl.textContent = "Fyll i namn och kommentar.";
+      const nameEl = document.getElementById("rrp-comment-name");
+      const emailEl = document.getElementById("rrp-comment-email");
+      const textEl = document.getElementById("rrp-comment-text");
+      const statusEl = document.getElementById("rrp-comment-status");
+
+      const author_name = (nameEl?.value || "").trim();
+      const author_email = (emailEl?.value || "").trim();
+      const comment = (textEl?.value || "").trim();
+
+      if (!comment) {
+        statusEl.textContent = "Skriv en kommentar först.";
         return;
       }
-  
+
       submitBtn.disabled = true;
       statusEl.textContent = "Skickar...";
-  
+
       try {
-        const res = await fetch(BACKEND_BASE_URL + "/api/comments", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            reviewId: currentOverlayReviewId,
-            authorName,
-            authorEmail: authorEmail || null,
-            comment,
-          }),
+        await apiPost("/api/comments", {
+          review_id: currentOverlayReviewId,
+          author_name: author_name || "Anonym",
+          author_email: author_email || null,
+          comment,
         });
-  
-        if (!res.ok) {
-          throw new Error("Failed to post comment");
-        }
-  
-        textInput.value = "";
-        statusEl.textContent = "Tack! Din kommentar är publicerad.";
-  
+
+        statusEl.textContent = "Tack! Kommentaren skickades och väntar på godkännande.";
+        if (textEl) textEl.value = "";
+        if (nameEl) nameEl.value = "";
+        if (emailEl) emailEl.value = "";
+
+        // Uppdatera listan (approved-listan kommer kanske inte visa den direkt)
         await loadComments(currentOverlayReviewId);
       } catch (err) {
         console.error("onCommentSubmit error:", err);
@@ -872,48 +612,43 @@
         submitBtn.disabled = false;
       }
     }
-  
+
+    // Maps callback: initiera endast kartan (UI + reviews laddas oavsett)
     window.initRestaurantReviewsPublicMap = function () {
       const mapEl = document.getElementById("rrp-map");
       if (!mapEl) return;
-  
+
       map = new google.maps.Map(mapEl, {
         center: { lat: HOME_LAT, lng: HOME_LNG },
         zoom: 13,
       });
-  
+
       infoWindow = new google.maps.InfoWindow();
-  
-      attachFilterEvents();
-      initOverlay();
-      initGalleryOverlay();
-      loadReviews();
+
+      // När kartan är redo kan vi rendera markers för de reviews som redan är laddade
+      renderMarkers();
     };
+
+    // Exponera initPublicUi till outer scope
+    window.__rrpInitPublicUi = initPublicUi;
   })();
-  
-  // ⬇️ VIKTIGT: din kod måste definiera denna callback
-  window.initRestaurantReviewsPublicMap = window.initRestaurantReviewsPublicMap || function () {
-    console.error("[public] initRestaurantReviewsPublicMap is not defined yet.");
-  };
 
   // Boot
   document.addEventListener("DOMContentLoaded", () => {
     renderShellOnce();
-  
-    // ✅ Kör allt som inte kräver karta
-    // Exempel: loadReviews(); bindFilterHandlers(); bindOverlayHandlers();
-    if (typeof initPublicUi === "function") {
-      initPublicUi(); // du kan samla din “icke-karta”-init här
-      loadReviews?.();         // eller det namn din fetch-funktion har
+
+    // ✅ Kör UI + hämta reviews direkt (även utan karta)
+    if (typeof window.__rrpInitPublicUi === "function") {
+      window.__rrpInitPublicUi();
     }
-  
-    // ✅ Karta bara om nyckel finns
+
+    // ✅ Karta endast om maps-key finns (Squarespace-läge)
     const mapsKey = cfg.googleMapsApiKey;
     if (!mapsKey) {
-      console.info("[public] Ingen googleMapsApiKey – kör utan karta (Pages-test).");
+      console.info("[public] Ingen googleMapsApiKey – kör utan karta (GitHub Pages test).");
       return;
     }
-  
+
     loadGoogleMaps({ apiKey: mapsKey, callbackName: "initRestaurantReviewsPublicMap" });
   });
 })();
