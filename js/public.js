@@ -17,130 +17,134 @@
 
   // Rendera hela markupen en gång (så Squarespace bara behöver root-diven)
   function renderShellOnce() {
-    if (document.getElementById("rrp-map")) return; // redan renderad
-
+    if (document.getElementById("rrp-map")) return;
+  
     root.innerHTML = `
-<div class="rrp-header">
-  <h2>Recenserade restauranger</h2>
-  <p>
-    Klicka på en pin på kartan eller på en rad i listan för att se detaljer.
-  </p>
-
-  <div class="rrp-controls">
-    <div class="rrp-filter">
-      <label for="rrp-filter-search">Sök</label>
-      <input id="rrp-filter-search" type="text" placeholder="Sök namn, typ, text..." />
-    </div>
-
-    <div class="rrp-filter">
-      <label for="rrp-filter-type">Typ</label>
-      <select id="rrp-filter-type">
-        <option value="">Alla</option>
-      </select>
-    </div>
-
-    <div class="rrp-filter">
-      <label for="rrp-filter-cost">Kostnad</label>
-      <select id="rrp-filter-cost">
-        <option value="">Alla</option>
-        <option value="1">$</option>
-        <option value="2">$$</option>
-        <option value="3">$$$</option>
-        <option value="4">$$$$</option>
-        <option value="5">$$$$$</option>
-      </select>
-    </div>
-
-    <div class="rrp-filter">
-      <label for="rrp-filter-min-rating">Min betyg</label>
-      <select id="rrp-filter-min-rating">
-        <option value="">Alla</option>
-        <option value="5">5 ★★★★★</option>
-        <option value="4">4 ★★★★</option>
-        <option value="3">3 ★★★</option>
-        <option value="2">2 ★★</option>
-        <option value="1">1 ★</option>
-      </select>
-    </div>
-
-    <div class="rrp-filter">
-      <label for="rrp-sort">Sortera</label>
-      <select id="rrp-sort">
-        <option value="newest">Nyast</option>
-        <option value="rating">Betyg</option>
-        <option value="distance">Avstånd</option>
-        <option value="name">Namn</option>
-      </select>
-    </div>
-  </div>
-</div>
-
-<div class="rrp-layout">
-  <div class="rrp-map-wrap">
-    <div id="rrp-map"></div>
-  </div>
-
-  <div class="rrp-list-wrap">
-    <div id="rrp-list"></div>
-  </div>
-</div>
-
-<!-- Overlay (detaljvy) -->
-<div id="rrp-overlay" class="rrp-overlay" aria-hidden="true">
-  <div class="rrp-overlay-backdrop" data-close="1"></div>
-  <div class="rrp-overlay-panel" role="dialog" aria-modal="true">
-    <button id="rrp-overlay-close" class="rrp-overlay-close" type="button" aria-label="Stäng">×</button>
-
-    <div class="rrp-overlay-content">
-      <h3 id="rrp-overlay-title"></h3>
-
-      <div id="rrp-overlay-meta" class="rrp-overlay-meta">
-        <span id="rrp-overlay-rating"></span>
-        <span id="rrp-overlay-distance"></span>
-        <span id="rrp-overlay-date"></span>
+      <div class="rrp-header">
+        <h2>Recenserade restauranger</h2>
+        <p>Klicka på en pin eller en restaurang för att se detaljer.</p>
       </div>
-
-      <div id="rrp-overlay-images" class="rrp-overlay-images"></div>
-
-      <div id="rrp-overlay-comment" class="rrp-overlay-comment"></div>
-
-      <a id="rrp-overlay-link" class="rrp-overlay-link" href="#" target="_blank" rel="noopener">Öppna i Google Maps</a>
-
-      <div id="rrp-comments-section" class="rrp-comments">
-        <h4>Kommentarer</h4>
-        <div id="rrp-comments-list" class="rrp-comments-list"></div>
-
-        <div id="rrp-comment-form-wrapper" class="rrp-comment-form-wrap">
-          <h5>Lämna en kommentar</h5>
-
-          <form id="rrp-comment-form" class="rrp-comment-form">
-            <div class="rrp-comment-row">
-              <input id="rrp-comment-name" type="text" placeholder="Namn" />
-              <input id="rrp-comment-email" type="email" placeholder="E-post (valfritt)" />
+  
+      <div class="rrp-container">
+        <div id="rrp-map"></div>
+  
+        <div class="rrp-side">
+          <div class="rrp-filters">
+            <div class="rrp-filter-group">
+              <label for="rrp-filter-search">Sök</label>
+              <input id="rrp-filter-search" type="text" placeholder="Sök..." />
             </div>
-            <textarea id="rrp-comment-text" rows="4" placeholder="Skriv din kommentar..."></textarea>
-            <button id="rrp-comment-submit" type="submit">Skicka</button>
-            <div id="rrp-comment-status" class="rrp-muted"></div>
-          </form>
+  
+            <div class="rrp-filter-group">
+              <label for="rrp-filter-type">Typ</label>
+              <select id="rrp-filter-type">
+                <option value="">Alla</option>
+              </select>
+            </div>
+  
+            <div class="rrp-filter-group">
+              <label for="rrp-filter-cost">Kostnad</label>
+              <select id="rrp-filter-cost">
+                <option value="">Alla</option>
+                <option value="1">$</option>
+                <option value="2">$$</option>
+                <option value="3">$$$</option>
+                <option value="4">$$$$</option>
+                <option value="5">$$$$$</option>
+              </select>
+            </div>
+  
+            <div class="rrp-filter-group">
+              <label for="rrp-filter-min-rating">Min betyg</label>
+              <select id="rrp-filter-min-rating">
+                <option value="">Alla</option>
+                <option value="5">5</option>
+                <option value="4">4</option>
+                <option value="3">3</option>
+                <option value="2">2</option>
+                <option value="1">1</option>
+              </select>
+            </div>
+  
+            <div class="rrp-filter-group">
+              <label for="rrp-sort">Sortera</label>
+              <select id="rrp-sort">
+                <option value="newest">Nyast</option>
+                <option value="rating">Betyg</option>
+                <option value="distance">Avstånd</option>
+                <option value="name">Namn</option>
+              </select>
+            </div>
+          </div>
+  
+          <div class="rrp-list-wrapper">
+            <div id="rrp-list"></div>
+          </div>
         </div>
       </div>
-    </div>
-  </div>
-</div>
-
-<!-- Bildgalleri-overlay -->
-<div id="rrp-gallery-overlay" class="rrp-gallery-overlay" aria-hidden="true">
-  <div class="rrp-gallery-backdrop" data-close="1"></div>
-  <div class="rrp-gallery-panel" role="dialog" aria-modal="true">
-    <button id="rrp-gallery-close" class="rrp-gallery-close" type="button" aria-label="Stäng">×</button>
-    <button id="rrp-gallery-prev" class="rrp-gallery-nav" type="button" aria-label="Föregående">‹</button>
-    <button id="rrp-gallery-next" class="rrp-gallery-nav" type="button" aria-label="Nästa">›</button>
-    <div class="rrp-gallery-inner">
-      <img id="rrp-gallery-image" alt="" />
-      <div id="rrp-gallery-counter" class="rrp-gallery-counter"></div>
-    </div>
-  </div>
-</div>
+  
+      <!-- Overlay (gamla strukturen/klasserna) -->
+      <div id="rrp-overlay" class="rrp-overlay" style="display:none;">
+        <div class="rrp-overlay-inner">
+          <button type="button" class="rrp-overlay-close" id="rrp-overlay-close">×</button>
+  
+          <div class="rrp-overlay-grid">
+            <div>
+              <div class="rrp-overlay-title-row">
+                <h3 id="rrp-overlay-title"></h3>
+                <div id="rrp-overlay-rating"></div>
+              </div>
+  
+              <div id="rrp-overlay-meta" class="rrp-overlay-meta"></div>
+              <div id="rrp-overlay-distance" class="rrp-overlay-meta"></div>
+              <div id="rrp-overlay-comment" class="rrp-overlay-comment"></div>
+  
+              <div class="rrp-comments">
+                <h4>Kommentarer</h4>
+                <div id="rrp-comments-list" class="rrp-comments-list"></div>
+  
+                <form id="rrp-comment-form">
+                  <div style="display:flex; gap:0.4rem; flex-wrap:wrap; margin-bottom:0.3rem;">
+                    <input id="rrp-comment-name" type="text" placeholder="Namn*" required />
+                    <input id="rrp-comment-email" type="email" placeholder="E-post (valfritt)" />
+                  </div>
+                  <textarea id="rrp-comment-text" placeholder="Skriv din kommentar." required></textarea>
+                  <div style="display:flex; align-items:center; gap:0.5rem; margin-top:0.35rem;">
+                    <button type="submit" id="rrp-comment-submit">Skicka kommentar</button>
+                    <span id="rrp-comment-status" class="rrp-muted"></span>
+                  </div>
+                </form>
+              </div>
+            </div>
+  
+            <div>
+              <div id="rrp-overlay-images" class="rrp-overlay-images"></div>
+            </div>
+          </div>
+  
+          <div class="rrp-overlay-footer">
+            <div id="rrp-overlay-date" class="rrp-overlay-meta"></div>
+            <a id="rrp-overlay-link" class="rrp-overlay-link" href="#" target="_blank" rel="noopener">
+              Öppna i Google Maps
+            </a>
+          </div>
+        </div>
+      </div>
+  
+      <!-- Galleri-overlay (gamla ID:n!) -->
+      <div id="rrp-gallery-overlay" class="rrp-overlay" style="display:none;">
+        <div class="rrp-overlay-inner rrp-gallery-inner">
+          <button type="button" class="rrp-overlay-close" id="rrp-gallery-close">×</button>
+          <div class="rrp-gallery-content">
+            <button type="button" class="rrp-gallery-nav-btn" id="rrp-gallery-prev">&#8249;</button>
+            <div class="rrp-gallery-img-wrapper">
+              <img id="rrp-gallery-img" src="" alt="Galleri-bild" />
+            </div>
+            <button type="button" class="rrp-gallery-nav-btn" id="rrp-gallery-next">&#8250;</button>
+          </div>
+          <div id="rrp-gallery-counter" class="rrp-gallery-counter"></div>
+        </div>
+      </div>
     `.trim();
   }
 
