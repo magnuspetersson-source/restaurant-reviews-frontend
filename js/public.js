@@ -904,6 +904,7 @@
     // Exempel: loadReviews(); bindFilterHandlers(); bindOverlayHandlers();
     if (typeof initPublicUi === "function") {
       initPublicUi(); // du kan samla din “icke-karta”-init här
+      loadReviews?.();         // eller det namn din fetch-funktion har
     }
   
     // ✅ Karta bara om nyckel finns
