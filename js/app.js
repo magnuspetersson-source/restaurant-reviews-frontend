@@ -1,9 +1,142 @@
+function ensureAppMarkup() {
+  const root = document.getElementById("app");
+  if (!root) throw new Error("Missing #app root");
+
+  // Om topbaren redan finns, gör inget
+  if (document.getElementById("sortSelect")) return;
+
+  root.innerHTML = `
+    <header class="topbar">
+      <div class="topbar__left">
+        <div class="brand">
+          <div class="brand__title">Restaurant Reviews</div>
+          <div class="brand__sub" id="resultsMeta">Laddar…</div>
+        </div>
+      </div>
+
+      <div class="topbar__right">
+        <div class="controls">
+          <select id="sortSelect" class="control">
+            <option value="latest">Sortera: Senaste</option>
+            <option value="rating_desc">Sortera: Högst betyg</option>
+            <option value="value_desc">Sortera: Bäst value</option>
+            <option value="distance_asc">Sortera: Närmast</option>
+          </select>
+
+          <select id="typeSelect" class="control">
+            <option value="">Typ: Alla</option>
+          </select>
+
+          <select id="priceSelect" class="control">
+            <option value="">Pris: Alla</option>
+            <option value="1">$</option>
+            <option value="2">$$</option>
+            <option value="3">$$$</option>
+            <option value="4">$$$$</option>
+            <option value="5">$$$$$</option>
+          </select>
+
+          <select id="minRatingSelect" class="control">
+            <option value="">Betyg: Alla</option>
+            <option value="5">★★★★★</option>
+            <option value="4">★★★★+</option>
+            <option value="3">★★★+</option>
+            <option value="2">★★+</option>
+            <option value="1">★+</option>
+          </select>
+        </div>
+
+        <div class="mobileToggle" id="mobileToggle">
+          <button class="toggleBtn is-active" data-mode="list" type="button">Lista</button>
+          <button class="toggleBtn" data-mode="map" type="button">Karta</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="main">
+      <section class="col col--list" id="colList" aria-label="Lista">
+        <div class="status" id="statusArea" hidden></div>
+        <div class="list" id="reviewList" aria-label="Recensioner"></div>
+      </section>
+
+      <section class="col col--map" id="colMap" aria-label="Karta">
+        <div class="map" id="map"></div>
+        <div class="mapHint" id="mapHint" hidden></div>
+      </section>
+
+      <aside class="panel" id="reviewPanel" aria-label="Detaljer" aria-hidden="true">
+        <div class="panel__header">
+          <button class="iconBtn" id="panelCloseBtn" aria-label="Stäng" type="button">✕</button>
+          <div class="panel__title" id="panelTitle"></div>
+          <div class="panel__meta" id="panelMeta"></div>
+        </div>
+
+        <div class="panel__body">
+          <div class="gallery" id="panelGallery"></div>
+          <div class="content" id="panelContent"></div>
+
+          <div class="comments">
+            <div class="comments__header">
+              <div class="comments__title">Kommentarer</div>
+              <div class="comments__disclaimer">
+                Kommentarer är användargenererade och har inte granskats.
+              </div>
+            </div>
+
+            <div class="comments__list" id="commentsList"></div>
+
+            <form class="commentForm" id="commentForm">
+              <div class="row">
+                <label class="field">
+                  <span>Namn</span>
+                  <input type="text" id="commentName" required maxlength="80" />
+                </label>
+                <label class="field">
+                  <span>Email (valfritt)</span>
+                  <input type="email" id="commentEmail" maxlength="120" />
+                </label>
+              </div>
+
+              <label class="field">
+                <span>Kommentar</span>
+                <textarea id="commentBody" required maxlength="2000"></textarea>
+              </label>
+
+              <div class="commentForm__actions">
+                <button type="submit" class="btn" id="commentSubmitBtn">Skicka</button>
+                <div class="formNote" id="commentNote"></div>
+              </div>
+            </form>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <div class="modal" id="slideshowModal" aria-hidden="true">
+      <div class="modal__overlay" id="modalOverlay"></div>
+      <div class="modal__dialog" role="dialog" aria-modal="true" aria-label="Bildspel">
+        <button class="iconBtn modal__close" id="modalCloseBtn" aria-label="Stäng" type="button">✕</button>
+
+        <div class="modal__media">
+          <button class="navBtn" id="modalPrevBtn" aria-label="Föregående" type="button">‹</button>
+          <img id="modalImage" alt="" />
+          <button class="navBtn" id="modalNextBtn" aria-label="Nästa" type="button">›</button>
+        </div>
+
+        <div class="modal__caption" id="modalCaption"></div>
+        <div class="modal__counter" id="modalCounter"></div>
+      </div>
+    </div>
+  `;
+}
+
 (function () {
   const { qs, setHidden } = window.RR_DOM;
   const { actions, selectors, state, subscribe } = window.RR_STATE;
 
   async function init() {
     // Wire UI controls
+    ensureAppMarkup();
     wireTopbar();
     wirePanel();
     window.RR_UI_COMMENTS.wireComments();
