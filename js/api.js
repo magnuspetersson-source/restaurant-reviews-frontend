@@ -1,12 +1,6 @@
 (function () {
   const CFG = window.RR_PUBLIC_CONFIG;
 
-  function apiUrl(path) {
-    // path like "/api/reviews"
-    if (!CFG.apiBase) return path;
-    return CFG.apiBase + path;
-  }
-
   async function fetchJson(path, opts) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
