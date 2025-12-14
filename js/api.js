@@ -1,5 +1,31 @@
 (function () {
-  const CFG = window.RR_PUBLIC_CONFIG;
+  // --- URL helpers (hoist-safe) ---
+  function getApiBase() {
+    // 1) RR_PUBLIC_CONFIG (från config.js)
+    const pc = window.RR_PUBLIC_CONFIG;
+    if (pc && typeof pc.apiBase === "string" && pc.apiBase.trim()) {
+      return pc.apiBase.replace(/\/+$/, "");
+    }
+
+    // 2) window.RR_CONFIG (om den finns)
+    const cfg = window.RR_CONFIG;
+    if (cfg && typeof cfg.apiBase === "string" && cfg.apiBase.trim()) {
+      return cfg.apiBase.replace(/\/+$/, "");
+    }
+
+    // 3) data-api-base på #app (Squarespace-stabilt)
+    const root = document.getElementById("app");
+    const attr = root && root.getAttribute("data-api-base");
+    if (attr && attr.trim()) return attr.replace(/\/+$/, "");
+
+    // 4) fallback: samma origin (inte önskat här)
+    return "";
+  }
+
+  function apiUrl(path) {
+    const base = getApiBase();
+    return base ? base + path : path;
+  }
 
   async function fetchJson(path, opts) {
     const controller = new AbortController();
@@ -10,17 +36,24 @@
         ...opts,
         signal: controller.signal,
         headers: {
-          "Accept": "application/json",
-          ...(opts && opts.headers ? opts.headers : {})
-        }
+          Accept: "application/json",
+          ...(opts && opts.headers ? opts.headers : {}),
+        },
       });
 
       const text = await res.text();
       let data = null;
-      try { data = text ? JSON.parse(text) : null; } catch { data = { raw: text }; }
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch {
+        data = { raw: text };
+      }
 
       if (!res.ok) {
-        const msg = (data && (data.error || data.message)) ? (data.error || data.message) : `HTTP ${res.status}`;
+        const msg =
+          data && (data.error || data.message)
+            ? data.error || data.message
+            : `HTTP ${res.status}`;
         const err = new Error(msg);
         err.status = res.status;
         err.data = data;
@@ -34,12 +67,16 @@
 
   function normalizeReview(r) {
     const images =
-      (Array.isArray(r.images) && r.images.length)
-        ? r.images.map(img => ({
-            url: String(img.url || "").trim(),
-            caption: String(img.caption || "").trim()
-          })).filter(x => x.url)
-        : (Array.isArray(r.image_urls) ? r.image_urls : []).map(u => ({ url: String(u).trim(), caption: "" })).filter(x => x.url);
+      Array.isArray(r.images) && r.images.length
+        ? r.images
+            .map((img) => ({
+              url: String(img.url || "").trim(),
+              caption: String(img.caption || "").trim(),
+            }))
+            .filter((x) => x.url)
+        : (Array.isArray(r.image_urls) ? r.image_urls : [])
+            .map((u) => ({ url: String(u).trim(), caption: "" }))
+            .filter((x) => x.url);
 
     return {
       id: r.id,
@@ -54,7 +91,7 @@
       restaurant_lng: r.restaurant_lng ?? null,
       created_at: r.created_at ?? null,
       comment_html: r.comment || "",
-      images
+      images,
     };
   }
 
@@ -74,7 +111,7 @@
     return fetchJson("/api/comments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
   }
 
