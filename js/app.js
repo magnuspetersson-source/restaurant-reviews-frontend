@@ -137,8 +137,9 @@ function __rrMarkersKey(reviews) {
 
 (function () {
   const { qs, setHidden } = window.RR_DOM;
-  const { actions, selectors, state, subscribe } = window.RR_STATE;
-
+  const { actions, state, subscribe } = window.RR_STATE;
+  const selectors = window.RR_STATE.selectors || null;
+  
   function setNetLoadingSafe(key, val) {
     if (typeof actions.setNetLoading === "function") actions.setNetLoading(key, val);
   }
@@ -277,8 +278,16 @@ function __rrMarkersKey(reviews) {
     }
   }
 
+  function getListForRender(s) {
+    if (selectors && typeof selectors.getFilteredSortedReviews === "function") {
+      return selectors.getFilteredSortedReviews();
+    }
+    // Fallback: ingen sort/filter ännu, men UI fungerar
+    return Array.isArray(s?.data?.reviews) ? s.data.reviews : [];
+  }
+
   function render(s) {
-    const list = selectors.getFilteredSortedReviews();
+    const list = getListForRender(s);
 
     // List render (din list.js ska finnas som RR_UI_LIST)
     window.RR_UI_LIST?.renderList?.(list, s.ui.selectedReviewId);
