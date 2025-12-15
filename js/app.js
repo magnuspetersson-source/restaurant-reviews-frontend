@@ -63,7 +63,7 @@ function ensureAppMarkup() {
         <div class="mapHint" id="mapHint" hidden></div>
       </section>
 
-      <aside class="panel" id="reviewPanel" aria-label="Detaljer" aria-hidden="true">
+      <aside class="panel" id="reviewPanel" aria-label="Detaljer" aria-hidden="true" style="display:none">
         <div class="panel__header">
           <button class="iconBtn" id="panelCloseBtn" aria-label="Stäng" type="button">✕</button>
           <div class="panel__title" id="panelTitle"></div>
@@ -147,31 +147,74 @@ function __rrMarkersKey(reviews) {
     if (typeof actions.setNetError === "function") actions.setNetError(key, val);
   }
 
+  function getReviewByIdSafe(s, id) {
+    const num = (id === null || id === undefined || id === "") ? null : Number(id);
+    if (!Number.isFinite(num)) return null;
+    const byId = s?.data?.byId;
+    if (byId && byId[num]) return byId[num];
+    const reviews = Array.isArray(s?.data?.reviews) ? s.data.reviews : [];
+    return reviews.find(r => Number(r.id) === num) || null;
+  }
+
+  // ===== Comments POST (FIX: you were missing this) =====
+  async function postComment(reviewId) {
+    const apiBase = ((window.RR_PUBLIC_CONFIG?.apiBase || window.RR_CONFIG?.apiBase || "") + "").replace(/\/+$/, "");
+    if (!apiBase) throw new Error("Saknar apiBase");
+
+    const rid = Number(reviewId);
+    if (!Number.isFinite(rid)) throw new Error("Saknar reviewId");
+
+    const name = qs("#commentName")?.value?.trim() || "";
+    const email = qs("#commentEmail")?.value?.trim() || "";
+    const body = qs("#commentBody")?.value?.trim() || "";
+
+    if (!name) throw new Error("Namn krävs");
+    if (!body) throw new Error("Kommentar krävs");
+
+    const res = await fetch(`${apiBase}/api/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        reviewId: rid,
+        authorName: name,
+        authorEmail: email ? email : null,
+        comment: body
+      })
+    });
+
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      throw new Error(`Upload failed: HTTP ${res.status} ${txt}`.trim());
+    }
+    return await res.json();
+  }
+
   function wireCommentForm() {
     const form = qs("#commentForm");
     if (!form) return;
-  
+
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
-  
+
       const note = qs("#commentNote");
       const btn = qs("#commentSubmitBtn");
-  
       const reviewId = window.RR_STATE?.state?.ui?.selectedReviewId;
-  
+
       try {
         if (btn) btn.disabled = true;
         if (note) note.textContent = "Skickar…";
-  
+
         await postComment(reviewId);
-  
-        // Rensa fält
-        const body = qs("#commentBody"); if (body) body.value = "";
-        // Ladda om kommentarer (om din comments-modul har loader)
+
+        // reset body
+        const body = qs("#commentBody");
+        if (body) body.value = "";
+
+        // reload comments list
         if (window.RR_UI_COMMENTS?.loadComments) {
           await window.RR_UI_COMMENTS.loadComments(reviewId);
         }
-  
+
         if (note) note.textContent = "Tack! Din kommentar är skickad. (Ej granskad)";
       } catch (err) {
         console.error("[RR] comment submit failed", err);
@@ -182,22 +225,9 @@ function __rrMarkersKey(reviews) {
     });
   }
 
-  function forcePanelOpen() {
-    const p = qs("#reviewPanel");
-    if (!p) return;
-    p.setAttribute("aria-hidden", "false");
-    p.classList.remove("is-hidden");
-  }
-  function forcePanelClose() {
-    const p = qs("#reviewPanel");
-    if (!p) return;
-    p.setAttribute("aria-hidden", "true");
-    p.classList.add("is-hidden");
-  }
-  
-  // ----- Slideshow fallback -----
+  // ----- Slideshow fallback (as you had it) -----
   let __SS = { open: false, images: [], index: 0 };
-  
+
   function getGalleryImagesFromDOM() {
     const g = qs("#panelGallery");
     if (!g) return [];
@@ -209,26 +239,26 @@ function __rrMarkersKey(reviews) {
       return [];
     }
   }
-  
+
   function ssRender() {
     const modal = qs("#slideshowModal");
     if (!modal) return;
-  
+
     modal.setAttribute("aria-hidden", __SS.open ? "false" : "true");
     modal.classList.toggle("is-open", __SS.open);
-  
+
     if (!__SS.open) return;
-  
+
     const img = qs("#modalImage");
     const cap = qs("#modalCaption");
     const ctr = qs("#modalCounter");
-  
+
     const current = __SS.images[__SS.index] || {};
     if (img) img.src = current.url || "";
     if (cap) cap.textContent = current.caption || "";
     if (ctr) ctr.textContent = `${__SS.index + 1} / ${__SS.images.length}`;
   }
-  
+
   function ssOpen(startIndex = 0) {
     __SS.images = getGalleryImagesFromDOM();
     if (!__SS.images.length) return;
@@ -236,26 +266,25 @@ function __rrMarkersKey(reviews) {
     __SS.open = true;
     ssRender();
   }
-  
+
   function ssClose() {
     __SS.open = false;
     ssRender();
   }
-  
+
   function ssPrev() {
     if (!__SS.images.length) return;
     __SS.index = (__SS.index - 1 + __SS.images.length) % __SS.images.length;
     ssRender();
   }
-  
+
   function ssNext() {
     if (!__SS.images.length) return;
     __SS.index = (__SS.index + 1) % __SS.images.length;
     ssRender();
   }
-  
+
   function wireSlideshowFallback() {
-    // Open on gallery click (any thumbnail). Uses data-index if present.
     const gallery = qs("#panelGallery");
     if (gallery) {
       gallery.addEventListener("click", (e) => {
@@ -265,44 +294,33 @@ function __rrMarkersKey(reviews) {
         ssOpen(idx != null ? Number(idx) : 0);
       });
     }
-  
-    // Modal controls
+
     qs("#modalOverlay")?.addEventListener("click", ssClose);
     qs("#modalCloseBtn")?.addEventListener("click", ssClose);
     qs("#modalPrevBtn")?.addEventListener("click", ssPrev);
     qs("#modalNextBtn")?.addEventListener("click", ssNext);
-  
-    // Escape closes modal first
+
     window.addEventListener("keydown", (e) => {
       if (e.key !== "Escape") return;
       if (__SS.open) ssClose();
     });
   }
 
-  function getReviewByIdSafe(s, id) {
-    const num = (id === null || id === undefined || id === "") ? null : Number(id);
-    if (!Number.isFinite(num)) return null;
-    const byId = s?.data?.byId;
-    if (byId && byId[num]) return byId[num];
-    const reviews = Array.isArray(s?.data?.reviews) ? s.data.reviews : [];
-    return reviews.find(r => Number(r.id) === num) || null;
+  function getListForRender(s) {
+    if (selectors && typeof selectors.getFilteredSortedReviews === "function") {
+      return selectors.getFilteredSortedReviews();
+    }
+    return Array.isArray(s?.data?.reviews) ? s.data.reviews : [];
   }
-
-  window.addEventListener("error", (e) => {
-    console.error("[RR] window.error", e.message, e.filename, e.lineno, e.colno, e.error);
-  });
-  window.addEventListener("unhandledrejection", (e) => {
-    console.error("[RR] unhandledrejection", e.reason);
-  });
 
   async function init() {
     ensureAppMarkup();
+
     wireCommentForm();
     safeWireTopbar();
     safeWirePanel();
     safeWireMobileToggle();
-
-	wireSlideshowFallback();
+    wireSlideshowFallback();
 
     window.RR_UI_COMMENTS?.wireComments?.();
     window.RR_UI_MODAL?.wireModal?.();
@@ -321,7 +339,6 @@ function __rrMarkersKey(reviews) {
 
     await loadReviewsOnce();
 
-    // initial selection från URL (safe)
     const initialId = window.RR_ROUTER?.getSelectedId?.();
     const initialReview = getReviewByIdSafe(state, initialId);
     if (initialReview) {
@@ -344,18 +361,12 @@ function __rrMarkersKey(reviews) {
     if (min) min.addEventListener("change", (e) => actions.setFilter("minRating", e.target.value));
   }
 
+  // FIX: close button should only change state; render() hides panel
   function safeWirePanel() {
     const close = qs("#panelCloseBtn");
-    if (close) close.addEventListener("click", () => {
-      actions.selectReview(null, "ui");
-      const panelEl = qs("#reviewPanel");
-      if (panelEl) {
-        panelEl.setAttribute("aria-hidden", "true");
-        panelEl.style.display = "none";
-      }
-    });
+    if (close) close.addEventListener("click", () => actions.selectReview(null, "ui"));
   }
-  
+
   function safeWireMobileToggle() {
     const toggle = qs("#mobileToggle");
     if (!toggle) return;
@@ -425,13 +436,6 @@ function __rrMarkersKey(reviews) {
     }
   }
 
-  function getListForRender(s) {
-    if (selectors && typeof selectors.getFilteredSortedReviews === "function") {
-      return selectors.getFilteredSortedReviews();
-    }
-    return Array.isArray(s?.data?.reviews) ? s.data.reviews : [];
-  }
-
   function render(s) {
     const list = getListForRender(s);
 
@@ -453,25 +457,21 @@ function __rrMarkersKey(reviews) {
 
     const review = getReviewByIdSafe(s, s.ui.selectedReviewId);
     window.RR_UI_PANEL?.renderPanel?.(review);
-   
-   // --- Force panel open/close (Squarespace-safe) ---
-   const panelEl = qs("#reviewPanel");
-   if (panelEl) {
-     const open = !!review;
-     panelEl.setAttribute("aria-hidden", open ? "false" : "true");
-     panelEl.style.display = open ? "block" : "none";
-   }
-    
-    // Make panel reliably open/close even if panel module misses a case
-	if (review) forcePanelOpen();
-	else forcePanelClose();
 
-	// Provide slideshow images to fallback (expects review.images = [{url, caption}])
-	const gallery = qs("#panelGallery");
-	if (gallery) {
-	  const imgs = Array.isArray(review?.images) ? review.images : [];
-	  gallery.dataset.images = JSON.stringify(imgs);
-	}
+    // SINGLE source of truth: state -> panel visibility
+    const panelEl = qs("#reviewPanel");
+    if (panelEl) {
+      const open = !!review;
+      panelEl.setAttribute("aria-hidden", open ? "false" : "true");
+      panelEl.style.display = open ? "block" : "none";
+    }
+
+    // slideshow images for fallback
+    const gallery = qs("#panelGallery");
+    if (gallery) {
+      const imgs = Array.isArray(review?.images) ? review.images : [];
+      gallery.dataset.images = JSON.stringify(imgs);
+    }
 
     const meta = qs("#resultsMeta");
     if (meta) meta.textContent = `${list.length} recensioner`;
