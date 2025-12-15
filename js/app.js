@@ -1,7 +1,6 @@
 function ensureAppMarkup() {
   const root = document.getElementById("app");
   if (!root) throw new Error("Missing #app root");
-
   if (document.getElementById("sortSelect")) return;
 
   root.innerHTML = `
@@ -129,7 +128,7 @@ function ensureAppMarkup() {
   `;
 }
 
-// Build markers only when list changes
+// Markers: rebuild only when list changes
 let __RR_MARKERS_KEY = "";
 function __rrMarkersKey(reviews) {
   return (reviews || []).map(r => `${r.id}:${r.restaurant_lat}:${r.restaurant_lng}`).join("|");
@@ -140,6 +139,7 @@ function __rrMarkersKey(reviews) {
   const { actions, state, subscribe } = window.RR_STATE;
   const selectors = window.RR_STATE.selectors || null;
 
+  // --- Safe wrappers (so we never depend on optional net actions) ---
   function setNetLoadingSafe(key, val) {
     if (typeof actions.setNetLoading === "function") actions.setNetLoading(key, val);
   }
@@ -147,6 +147,7 @@ function __rrMarkersKey(reviews) {
     if (typeof actions.setNetError === "function") actions.setNetError(key, val);
   }
 
+  // --- Helpers ---
   function getReviewByIdSafe(s, id) {
     const num = (id === null || id === undefined || id === "") ? null : Number(id);
     if (!Number.isFinite(num)) return null;
@@ -156,7 +157,13 @@ function __rrMarkersKey(reviews) {
     return reviews.find(r => Number(r.id) === num) || null;
   }
 
-  // ===== Comments POST (FIX: you were missing this) =====
+  function getListForRender(s) {
+    if (selectors && typeof selectors.getFilteredSortedReviews === "function") {
+      return selectors.getFilteredSortedReviews();
+    }
+    return Array.isArray(s?.data?.reviews) ? s.data.reviews : [];
+  }
+
   async function postComment(reviewId) {
     const apiBase = ((window.RR_PUBLIC_CONFIG?.apiBase || window.RR_CONFIG?.apiBase || "") + "").replace(/\/+$/, "");
     if (!apiBase) throw new Error("Saknar apiBase");
@@ -206,11 +213,9 @@ function __rrMarkersKey(reviews) {
 
         await postComment(reviewId);
 
-        // reset body
         const body = qs("#commentBody");
         if (body) body.value = "";
 
-        // reload comments list
         if (window.RR_UI_COMMENTS?.loadComments) {
           await window.RR_UI_COMMENTS.loadComments(reviewId);
         }
@@ -225,15 +230,14 @@ function __rrMarkersKey(reviews) {
     });
   }
 
-  // ----- Slideshow fallback (as you had it) -----
+  // --- Slideshow fallback ---
   let __SS = { open: false, images: [], index: 0 };
 
   function getGalleryImagesFromDOM() {
     const g = qs("#panelGallery");
     if (!g) return [];
     try {
-      const raw = g.dataset.images || "[]";
-      const arr = JSON.parse(raw);
+      const arr = JSON.parse(g.dataset.images || "[]");
       return Array.isArray(arr) ? arr : [];
     } catch {
       return [];
@@ -246,14 +250,13 @@ function __rrMarkersKey(reviews) {
 
     modal.setAttribute("aria-hidden", __SS.open ? "false" : "true");
     modal.classList.toggle("is-open", __SS.open);
-
     if (!__SS.open) return;
 
+    const current = __SS.images[__SS.index] || {};
     const img = qs("#modalImage");
     const cap = qs("#modalCaption");
     const ctr = qs("#modalCounter");
 
-    const current = __SS.images[__SS.index] || {};
     if (img) img.src = current.url || "";
     if (cap) cap.textContent = current.caption || "";
     if (ctr) ctr.textContent = `${__SS.index + 1} / ${__SS.images.length}`;
@@ -267,17 +270,12 @@ function __rrMarkersKey(reviews) {
     ssRender();
   }
 
-  function ssClose() {
-    __SS.open = false;
-    ssRender();
-  }
-
+  function ssClose() { __SS.open = false; ssRender(); }
   function ssPrev() {
     if (!__SS.images.length) return;
     __SS.index = (__SS.index - 1 + __SS.images.length) % __SS.images.length;
     ssRender();
   }
-
   function ssNext() {
     if (!__SS.images.length) return;
     __SS.index = (__SS.index + 1) % __SS.images.length;
@@ -285,15 +283,12 @@ function __rrMarkersKey(reviews) {
   }
 
   function wireSlideshowFallback() {
-    const gallery = qs("#panelGallery");
-    if (gallery) {
-      gallery.addEventListener("click", (e) => {
-        const t = e.target.closest("[data-index], img, button, a, div");
-        if (!t) return;
-        const idx = t.getAttribute("data-index");
-        ssOpen(idx != null ? Number(idx) : 0);
-      });
-    }
+    qs("#panelGallery")?.addEventListener("click", (e) => {
+      const t = e.target.closest("[data-index], img, button, a, div");
+      if (!t) return;
+      const idx = t.getAttribute("data-index");
+      ssOpen(idx != null ? Number(idx) : 0);
+    });
 
     qs("#modalOverlay")?.addEventListener("click", ssClose);
     qs("#modalCloseBtn")?.addEventListener("click", ssClose);
@@ -306,22 +301,140 @@ function __rrMarkersKey(reviews) {
     });
   }
 
-  function getListForRender(s) {
-    if (selectors && typeof selectors.getFilteredSortedReviews === "function") {
-      return selectors.getFilteredSortedReviews();
-    }
-    return Array.isArray(s?.data?.reviews) ? s.data.reviews : [];
+  // --- Wiring ---
+  function wireTopbar() {
+    qs("#sortSelect")?.addEventListener("change", (e) => actions.setSort(e.target.value));
+    qs("#typeSelect")?.addEventListener("change", (e) => actions.setFilter("type", e.target.value));
+    qs("#priceSelect")?.addEventListener("change", (e) => actions.setFilter("price", e.target.value));
+    qs("#minRatingSelect")?.addEventListener("change", (e) => actions.setFilter("minRating", e.target.value));
   }
 
+  function wirePanelClose() {
+    qs("#panelCloseBtn")?.addEventListener("click", () => actions.selectReview(null, "ui"));
+  }
+
+  function wireMobileToggle() {
+    const toggle = qs("#mobileToggle");
+    if (!toggle) return;
+    toggle.addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-mode]");
+      if (!btn) return;
+      actions.setViewMode(btn.getAttribute("data-mode"));
+    });
+  }
+
+  function applyMobileMode(viewMode) {
+    const isMobile = window.matchMedia("(max-width: 980px)").matches;
+    const colList = qs("#colList");
+    const colMap = qs("#colMap");
+    const toggle = qs("#mobileToggle");
+
+    if (!isMobile) {
+      colMap.style.display = "";
+      colList.style.display = "";
+      toggle?.querySelectorAll("button").forEach(b => b.classList.remove("is-active"));
+      return;
+    }
+
+    toggle?.querySelectorAll("button").forEach((b) =>
+      b.classList.toggle("is-active", b.getAttribute("data-mode") === viewMode)
+    );
+
+    if (viewMode === "map") {
+      colMap.style.display = "block";
+      colList.style.display = "none";
+    } else {
+      colMap.style.display = "none";
+      colList.style.display = "block";
+    }
+  }
+
+  // --- Data load ---
+  async function loadReviewsOnce() {
+    setNetLoadingSafe("reviews", true);
+    setNetErrorSafe("reviews", null);
+
+    const statusArea = qs("#statusArea");
+    statusArea.textContent = "Laddar recensioner…";
+    setHidden(statusArea, false);
+
+    try {
+      const reviews = await window.RR_API.getReviews();
+      actions.setReviews(reviews);
+
+      try { window.RR_UI_LIST?.renderTypeOptions?.(reviews); } catch {}
+
+      setHidden(statusArea, true);
+    } catch (e) {
+      const msg = e?.message || "Kunde inte hämta recensioner";
+      setNetErrorSafe("reviews", msg);
+      statusArea.textContent = `Fel: ${msg}`;
+      setHidden(statusArea, false);
+      console.error("[RR] loadReviewsOnce failed:", e);
+    } finally {
+      setNetLoadingSafe("reviews", false);
+    }
+  }
+
+  // --- Render ---
+  function render(s) {
+    const list = getListForRender(s);
+
+    // List
+    const listUI = window.RR_UI_LIST || window.RR_LIST;
+    if (listUI?.renderList) {
+      listUI.renderList(list, s.ui.selectedReviewId, (id, source) =>
+        actions.selectReview(id, source || "list")
+      );
+    }
+
+    // Markers
+    if (window.RR_MAP?.getMap?.() && window.google && google.maps) {
+      const key = __rrMarkersKey(list);
+      if (key !== __RR_MARKERS_KEY) {
+        __RR_MARKERS_KEY = key;
+        window.RR_MARKERS.renderMarkers(list, null, (id) => actions.selectReview(id, "map"));
+      }
+      window.RR_MARKERS.highlightSelected(s.ui.selectedReviewId);
+    }
+
+    // Panel content
+    const review = getReviewByIdSafe(s, s.ui.selectedReviewId);
+    window.RR_UI_PANEL?.renderPanel?.(review);
+
+    // Panel visibility (single source of truth)
+    const panelEl = qs("#reviewPanel");
+    if (panelEl) {
+      const open = !!review;
+      panelEl.setAttribute("aria-hidden", open ? "false" : "true");
+      panelEl.style.display = open ? "block" : "none";
+    }
+
+    // Slideshow images for fallback
+    const gallery = qs("#panelGallery");
+    if (gallery) {
+      const imgs = Array.isArray(review?.images) ? review.images : [];
+      gallery.dataset.images = JSON.stringify(imgs);
+    }
+
+    // Meta
+    qs("#resultsMeta").textContent = `${list.length} recensioner`;
+
+    // Mobile
+    applyMobileMode(s.ui.viewMode || "list");
+  }
+
+  // --- Init ---
   async function init() {
     ensureAppMarkup();
 
+    wireTopbar();
+    wirePanelClose();
+    wireMobileToggle();
     wireCommentForm();
-    safeWireTopbar();
-    safeWirePanel();
-    safeWireMobileToggle();
     wireSlideshowFallback();
 
+    // External modules can still wire themselves if present
     window.RR_UI_COMMENTS?.wireComments?.();
     window.RR_UI_MODAL?.wireModal?.();
 
@@ -339,6 +452,7 @@ function __rrMarkersKey(reviews) {
 
     await loadReviewsOnce();
 
+    // initial selection from URL
     const initialId = window.RR_ROUTER?.getSelectedId?.();
     const initialReview = getReviewByIdSafe(state, initialId);
     if (initialReview) {
@@ -347,136 +461,6 @@ function __rrMarkersKey(reviews) {
     }
 
     render(state);
-  }
-
-  function safeWireTopbar() {
-    const sort = qs("#sortSelect");
-    const type = qs("#typeSelect");
-    const price = qs("#priceSelect");
-    const min = qs("#minRatingSelect");
-
-    if (sort) sort.addEventListener("change", (e) => actions.setSort(e.target.value));
-    if (type) type.addEventListener("change", (e) => actions.setFilter("type", e.target.value));
-    if (price) price.addEventListener("change", (e) => actions.setFilter("price", e.target.value));
-    if (min) min.addEventListener("change", (e) => actions.setFilter("minRating", e.target.value));
-  }
-
-  // FIX: close button should only change state; render() hides panel
-  function safeWirePanel() {
-    const close = qs("#panelCloseBtn");
-    if (close) close.addEventListener("click", () => actions.selectReview(null, "ui"));
-  }
-
-  function safeWireMobileToggle() {
-    const toggle = qs("#mobileToggle");
-    if (!toggle) return;
-
-    toggle.addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-mode]");
-      if (!btn) return;
-      actions.setViewMode(btn.getAttribute("data-mode"));
-    });
-  }
-
-  async function loadReviewsOnce() {
-    setNetLoadingSafe("reviews", true);
-    setNetErrorSafe("reviews", null);
-
-    const statusArea = qs("#statusArea");
-    statusArea.textContent = "Laddar recensioner…";
-    setHidden(statusArea, false);
-
-    try {
-      const reviews = await window.RR_API.getReviews();
-      actions.setReviews(reviews);
-
-      try {
-        window.RR_UI_LIST?.renderTypeOptions?.(reviews);
-      } catch (e) {
-        console.warn("[RR] renderTypeOptions failed (ok to ignore):", e);
-      }
-
-      setHidden(statusArea, true);
-    } catch (e) {
-      const msg = e?.message || "Kunde inte hämta recensioner";
-      setNetErrorSafe("reviews", msg);
-      statusArea.textContent = `Fel: ${msg}`;
-      setHidden(statusArea, false);
-      console.error("[RR] loadReviewsOnce failed:", e);
-    } finally {
-      setNetLoadingSafe("reviews", false);
-    }
-  }
-
-  function applyMobileMode(viewMode) {
-    const isMobile = window.matchMedia("(max-width: 980px)").matches;
-    const colList = qs("#colList");
-    const colMap = qs("#colMap");
-    const toggle = qs("#mobileToggle");
-
-    if (!isMobile) {
-      colMap.style.display = "";
-      colList.style.display = "";
-      if (toggle) toggle.querySelectorAll("button").forEach(b => b.classList.remove("is-active"));
-      return;
-    }
-
-    if (toggle) {
-      toggle.querySelectorAll("button").forEach((b) =>
-        b.classList.toggle("is-active", b.getAttribute("data-mode") === viewMode)
-      );
-    }
-
-    if (viewMode === "map") {
-      colMap.style.display = "block";
-      colList.style.display = "none";
-    } else {
-      colMap.style.display = "none";
-      colList.style.display = "block";
-    }
-  }
-
-  function render(s) {
-    const list = getListForRender(s);
-
-    const listUI = window.RR_UI_LIST || window.RR_LIST;
-    if (listUI && typeof listUI.renderList === "function") {
-      listUI.renderList(list, s.ui.selectedReviewId, (id, source) =>
-        actions.selectReview(id, source || "list")
-      );
-    }
-
-    if (window.RR_MAP?.getMap?.() && window.google && google.maps) {
-      const key = __rrMarkersKey(list);
-      if (key !== __RR_MARKERS_KEY) {
-        __RR_MARKERS_KEY = key;
-        window.RR_MARKERS.renderMarkers(list, null, (id) => actions.selectReview(id, "map"));
-      }
-      window.RR_MARKERS.highlightSelected(s.ui.selectedReviewId);
-    }
-
-    const review = getReviewByIdSafe(s, s.ui.selectedReviewId);
-    window.RR_UI_PANEL?.renderPanel?.(review);
-
-    // SINGLE source of truth: state -> panel visibility
-    const panelEl = qs("#reviewPanel");
-    if (panelEl) {
-      const open = !!review;
-      panelEl.setAttribute("aria-hidden", open ? "false" : "true");
-      panelEl.style.display = open ? "block" : "none";
-    }
-
-    // slideshow images for fallback
-    const gallery = qs("#panelGallery");
-    if (gallery) {
-      const imgs = Array.isArray(review?.images) ? review.images : [];
-      gallery.dataset.images = JSON.stringify(imgs);
-    }
-
-    const meta = qs("#resultsMeta");
-    if (meta) meta.textContent = `${list.length} recensioner`;
-
-    applyMobileMode(s.ui.viewMode || "list");
   }
 
   document.addEventListener("DOMContentLoaded", init);
