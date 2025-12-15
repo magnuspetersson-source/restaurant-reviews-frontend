@@ -139,7 +139,7 @@ function __rrMarkersKey(reviews) {
   const { qs, setHidden } = window.RR_DOM;
   const { actions, state, subscribe } = window.RR_STATE;
   const selectors = window.RR_STATE.selectors || null;
-  
+
   function setNetLoadingSafe(key, val) {
     if (typeof actions.setNetLoading === "function") actions.setNetLoading(key, val);
   }
@@ -147,7 +147,15 @@ function __rrMarkersKey(reviews) {
     if (typeof actions.setNetError === "function") actions.setNetError(key, val);
   }
 
-  // Crash-catchers (så du alltid ser orsaken)
+  function getReviewByIdSafe(s, id) {
+    const num = (id === null || id === undefined || id === "") ? null : Number(id);
+    if (!Number.isFinite(num)) return null;
+    const byId = s?.data?.byId;
+    if (byId && byId[num]) return byId[num];
+    const reviews = Array.isArray(s?.data?.reviews) ? s.data.reviews : [];
+    return reviews.find(r => Number(r.id) === num) || null;
+  }
+
   window.addEventListener("error", (e) => {
     console.error("[RR] window.error", e.message, e.filename, e.lineno, e.colno, e.error);
   });
@@ -162,18 +170,15 @@ function __rrMarkersKey(reviews) {
     safeWirePanel();
     safeWireMobileToggle();
 
-    // Wire comments/modal om de finns
     window.RR_UI_COMMENTS?.wireComments?.();
     window.RR_UI_MODAL?.wireModal?.();
 
-    // Subscribe render tidigt
     subscribe(render);
 
-    // Init map (om nyckel finns)
     const mapEl = qs("#map");
     try {
-		if (window.RR_CONFIG_READY) await window.RR_CONFIG_READY;
-      	await window.RR_MAP.initMap(mapEl);
+      if (window.RR_CONFIG_READY) await window.RR_CONFIG_READY;
+      await window.RR_MAP.initMap(mapEl);
     } catch (e) {
       const hint = qs("#mapHint");
       hint.textContent = e.message || "Kunde inte initiera karta";
@@ -182,11 +187,12 @@ function __rrMarkersKey(reviews) {
 
     await loadReviewsOnce();
 
-    // initial selection från URL (om vi har review)
+    // initial selection från URL (safe)
     const initialId = window.RR_ROUTER?.getSelectedId?.();
-    if (initialId && state.data.byId[initialId]) {
-      actions.selectReview(initialId); // state.js ignorerar extra args ändå
-      await window.RR_UI_COMMENTS?.loadComments?.(initialId);
+    const initialReview = getReviewByIdSafe(state, initialId);
+    if (initialReview) {
+      actions.selectReview(initialReview.id, "router");
+      await window.RR_UI_COMMENTS?.loadComments?.(initialReview.id);
     }
 
     render(state);
@@ -206,7 +212,7 @@ function __rrMarkersKey(reviews) {
 
   function safeWirePanel() {
     const close = qs("#panelCloseBtn");
-    if (close) close.addEventListener("click", () => actions.selectReview(null));
+    if (close) close.addEventListener("click", () => actions.selectReview(null, "ui"));
   }
 
   function safeWireMobileToggle() {
@@ -232,7 +238,6 @@ function __rrMarkersKey(reviews) {
       const reviews = await window.RR_API.getReviews();
       actions.setReviews(reviews);
 
-      // Type options (om din list-modul har den)
       try {
         window.RR_UI_LIST?.renderTypeOptions?.(reviews);
       } catch (e) {
@@ -283,41 +288,35 @@ function __rrMarkersKey(reviews) {
     if (selectors && typeof selectors.getFilteredSortedReviews === "function") {
       return selectors.getFilteredSortedReviews();
     }
-    // Fallback: ingen sort/filter ännu, men UI fungerar
     return Array.isArray(s?.data?.reviews) ? s.data.reviews : [];
   }
 
   function render(s) {
     const list = getListForRender(s);
 
-    // List render (din list.js ska finnas som RR_UI_LIST)
     const listUI = window.RR_UI_LIST || window.RR_LIST;
     if (listUI && typeof listUI.renderList === "function") {
-      // din list.js tar (reviews, selectedId, onPick)
-      listUI.renderList(list, s.ui.selectedReviewId, (id, source) => actions.selectReview(id, source || "list"));
-    } else {
-      console.warn("[RR] Missing list renderer (RR_LIST/RR_UI_LIST)");
+      listUI.renderList(list, s.ui.selectedReviewId, (id, source) =>
+        actions.selectReview(id, source || "list")
+      );
     }
 
-    // Markers best-practice
     if (window.RR_MAP?.getMap?.() && window.google && google.maps) {
       const key = __rrMarkersKey(list);
       if (key !== __RR_MARKERS_KEY) {
         __RR_MARKERS_KEY = key;
-        window.RR_MARKERS.renderMarkers(list, null, (id) => actions.selectReview(id));
+        window.RR_MARKERS.renderMarkers(list, null, (id) => actions.selectReview(id, "map"));
       }
       window.RR_MARKERS.highlightSelected(s.ui.selectedReviewId);
     }
 
-    // Panel
-    const review = s.ui.selectedReviewId ? s.data.byId[s.ui.selectedReviewId] : null;
+    const review = getReviewByIdSafe(s, s.ui.selectedReviewId);
     window.RR_UI_PANEL?.renderPanel?.(review);
 
-    // Meta
     const meta = qs("#resultsMeta");
     if (meta) meta.textContent = `${list.length} recensioner`;
 
-    applyMobileMode(s.ui.viewMode);
+    applyMobileMode(s.ui.viewMode || "list");
   }
 
   document.addEventListener("DOMContentLoaded", init);
