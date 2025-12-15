@@ -290,7 +290,13 @@ function __rrMarkersKey(reviews) {
     const list = getListForRender(s);
 
     // List render (din list.js ska finnas som RR_UI_LIST)
-    window.RR_UI_LIST?.renderList?.(list, s.ui.selectedReviewId);
+    const listUI = window.RR_UI_LIST || window.RR_LIST;
+    if (listUI && typeof listUI.renderList === "function") {
+      // din list.js tar (reviews, selectedId, onPick)
+      listUI.renderList(list, s.ui.selectedReviewId, (id, source) => actions.selectReview(id, source || "list"));
+    } else {
+      console.warn("[RR] Missing list renderer (RR_LIST/RR_UI_LIST)");
+    }
 
     // Markers best-practice
     if (window.RR_MAP?.getMap?.() && window.google && google.maps) {
