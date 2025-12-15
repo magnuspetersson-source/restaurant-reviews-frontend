@@ -1,80 +1,107 @@
+// markers.js
 (function () {
-  let markers = [];
-  let markerById = {};
+  let markerById = new Map();
+  let lastRenderedKey = "";
+  let lastSelectedId = null;
 
-  function clearMarkers() {
-    for (const m of markers) m.setMap(null);
-    markers = [];
-    markerById = {};
-  }
-
-  function makeIcon(selected) {
-    // Google default pin-ish (red) via SymbolPath (stabilt utan externa assets)
-    const scale = selected ? 10 : 7;
+  function makeIcon(isSelected) {
+    // Google default red-ish pin look, but with size difference
+    // (adjust if you have a custom icon function elsewhere)
+    const scale = isSelected ? 8 : 6;
     return {
-      path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
+      path: google.maps.SymbolPath.CIRCLE,
       scale,
-      fillColor: "#EA4335",
       fillOpacity: 1,
-      strokeColor: "#ffffff",
-      strokeWeight: 1.2
+      strokeOpacity: 1,
+      strokeWeight: 2
     };
   }
 
-  function fitTo(markersList, map) {
-    const pts = markersList
-      .map(m => m.getPosition())
-      .filter(Boolean);
-
-    if (!pts.length) return;
-
-    const bounds = new google.maps.LatLngBounds();
-    pts.forEach(p => bounds.extend(p));
-    map.fitBounds(bounds, 60);
+  function computeKey(reviews) {
+    // Stable key so we only rebuild markers when the list changes
+    return (reviews || [])
+      .map((r) => `${r.id}:${r.restaurant_lat}:${r.restaurant_lng}`)
+      .join("|");
   }
 
-  function renderMarkers(reviews, selectedId, onPick) {
-    const map = window.RR_MAP.getMap();
-    if (!map || !window.google || !google.maps) return;
+  function clearMarkers() {
+    for (const m of markerById.values()) m.setMap(null);
+    markerById.clear();
+  }
+
+  function renderMarkers(reviews, onPick) {
+    const map = window.RR_MAP?.getMap?.();
+    if (!map || !Array.isArray(reviews)) return;
+
+    const key = computeKey(reviews);
+    if (key === lastRenderedKey) return; // list unchanged
+
+    lastRenderedKey = key;
+    lastSelectedId = null;
 
     clearMarkers();
 
     for (const r of reviews) {
-      const lat = Number(r.restaurant_lat);
-      const lng = Number(r.restaurant_lng);
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
-
-      const isSelected = (r.id === selectedId);
+      if (r.restaurant_lat == null || r.restaurant_lng == null) continue;
 
       const marker = new google.maps.Marker({
-        position: { lat, lng },
         map,
+        position: { lat: Number(r.restaurant_lat), lng: Number(r.restaurant_lng) },
         title: r.place_name || "",
-        icon: makeIcon(isSelected),
-        zIndex: isSelected ? 999 : 1
+        icon: makeIcon(false),
+        zIndex: 1
       });
 
-      marker.addListener("click", () => onPick(r.id));
-      markers.push(marker);
-      markerById[r.id] = marker;
-    }
+      marker.addListener("click", () => {
+        // IMPORTANT: selection comes from map, but must not rebuild markers
+        onPick?.(r.id);
+      });
 
-    fitTo(markers, map);
+      markerById.set(Number(r.id), marker);
+    }
   }
 
-  function highlightSelected(selectedId) {
-    for (const [idStr, marker] of Object.entries(markerById)) {
-      const id = Number(idStr);
-      const isSelected = id === selectedId;
-      marker.setIcon(makeIcon(isSelected));
-      marker.setZIndex(isSelected ? 999 : 1);
-      if (isSelected) {
-        const map = window.RR_MAP.getMap();
-        const pos = marker.getPosition();
-        if (map && pos) map.panTo(pos);
+  // Guard panTo to avoid accidental re-entrancy storms
+  let isHighlighting = false;
+
+  function highlightSelected(selectedId, opts = { pan: true }) {
+    const map = window.RR_MAP?.getMap?.();
+    if (!map) return;
+
+    const id = selectedId == null ? null : Number(selectedId);
+    if (id === lastSelectedId) return;
+
+    if (isHighlighting) return;
+    isHighlighting = true;
+    try {
+      // Unselect previous
+      if (lastSelectedId != null) {
+        const prev = markerById.get(Number(lastSelectedId));
+        if (prev) {
+          prev.setIcon(makeIcon(false));
+          prev.setZIndex(1);
+        }
       }
+
+      lastSelectedId = id;
+
+      // Select new
+      if (id != null) {
+        const m = markerById.get(id);
+        if (m) {
+          m.setIcon(makeIcon(true));
+          m.setZIndex(999);
+
+          if (opts?.pan) {
+            const pos = m.getPosition();
+            if (pos) map.panTo(pos);
+          }
+        }
+      }
+    } finally {
+      isHighlighting = false;
     }
   }
 
-  window.RR_MARKERS = { renderMarkers, highlightSelected };
+  window.RR_MARKERS = { renderMarkers, highlightSelected, clearMarkers };
 })();
