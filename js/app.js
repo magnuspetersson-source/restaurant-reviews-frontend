@@ -130,18 +130,29 @@ function ensureAppMarkup() {
   `;
 }
 
+// === Best practice: rebuild markers only when list changes ===
+let __RR_MARKERS_KEY = "";
+function __rrMarkersKey(reviews) {
+  return (reviews || [])
+    .map((r) => `${r.id}:${r.restaurant_lat}:${r.restaurant_lng}`)
+    .join("|");
+}
+
 (function () {
   const { qs, setHidden } = window.RR_DOM;
   const { actions, selectors, state, subscribe } = window.RR_STATE;
 
   async function init() {
-    // Wire UI controls
+    // Wire UI controls + ensure DOM exists
     ensureAppMarkup();
     wireTopbar();
     wirePanel();
     window.RR_UI_COMMENTS.wireComments();
     window.RR_UI_MODAL.wireModal();
     wireMobileToggle();
+
+    // Subscribe render BEFORE we start loading & mutating state
+    subscribe(render);
 
     // Map init
     const mapEl = qs("#map");
@@ -156,15 +167,14 @@ function ensureAppMarkup() {
     // Load data
     await loadReviewsOnce();
 
-    // initial selection from URL
+    // Initial selection from URL
     const initialId = window.RR_ROUTER.getSelectedId();
     if (initialId && state.data.byId[initialId]) {
-      actions.selectReview(initialId);
+      actions.selectReview(initialId, "router");
       await window.RR_UI_COMMENTS.loadComments(initialId);
     }
 
-    // Subscribe render
-    subscribe(render);
+    // Initial render
     render(state);
   }
 
@@ -201,7 +211,7 @@ function ensureAppMarkup() {
   }
 
   function wirePanel() {
-    qs("#panelCloseBtn").addEventListener("click", () => actions.selectReview(null));
+    qs("#panelCloseBtn").addEventListener("click", () => actions.selectReview(null, "ui"));
   }
 
   function wireMobileToggle() {
@@ -222,11 +232,11 @@ function ensureAppMarkup() {
     if (!isMobile) {
       colMap.style.display = "";
       colList.style.display = "";
-      btns.forEach(b => b.classList.remove("is-active"));
+      btns.forEach((b) => b.classList.remove("is-active"));
       return;
     }
 
-    btns.forEach(b => b.classList.toggle("is-active", b.getAttribute("data-mode") === viewMode));
+    btns.forEach((b) => b.classList.toggle("is-active", b.getAttribute("data-mode") === viewMode));
     if (viewMode === "map") {
       colMap.style.display = "block";
       colList.style.display = "none";
@@ -241,9 +251,14 @@ function ensureAppMarkup() {
     const list = selectors.getFilteredSortedReviews();
     window.RR_UI_LIST.renderList(list, s.ui.selectedReviewId);
 
-    // Map markers
-    if (window.RR_MAP.getMap() && window.google && google.maps) {
-      window.RR_MARKERS.renderMarkers(list, s.ui.selectedReviewId, (id) => actions.selectReview(id));
+    // Map markers: rebuild ONLY if list changed, selection handled separately
+    if (window.RR_MAP.getMap && window.RR_MAP.getMap() && window.google && google.maps) {
+      const key = __rrMarkersKey(list);
+      if (key !== __RR_MARKERS_KEY) {
+        __RR_MARKERS_KEY = key;
+        // IMPORTANT: do not pass selectedId into renderMarkers to avoid loops
+        window.RR_MARKERS.renderMarkers(list, null, (id) => actions.selectReview(id, "map"));
+      }
       window.RR_MARKERS.highlightSelected(s.ui.selectedReviewId);
     }
 
@@ -283,7 +298,7 @@ function ensureAppMarkup() {
     if (e.key !== "Escape") return;
     const { state } = window.RR_STATE;
     if (state.ui.slideshow.open) return;
-    if (state.ui.selectedReviewId) window.RR_STATE.actions.selectReview(null);
+    if (state.ui.selectedReviewId) window.RR_STATE.actions.selectReview(null, "escape");
   });
 
   document.addEventListener("DOMContentLoaded", init);
