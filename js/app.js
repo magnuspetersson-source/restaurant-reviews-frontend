@@ -147,6 +147,103 @@ function __rrMarkersKey(reviews) {
     if (typeof actions.setNetError === "function") actions.setNetError(key, val);
   }
 
+  function forcePanelOpen() {
+    const p = qs("#reviewPanel");
+    if (!p) return;
+    p.setAttribute("aria-hidden", "false");
+    p.classList.remove("is-hidden");
+  }
+  function forcePanelClose() {
+    const p = qs("#reviewPanel");
+    if (!p) return;
+    p.setAttribute("aria-hidden", "true");
+    p.classList.add("is-hidden");
+  }
+  
+  // ----- Slideshow fallback -----
+  let __SS = { open: false, images: [], index: 0 };
+  
+  function getGalleryImagesFromDOM() {
+    const g = qs("#panelGallery");
+    if (!g) return [];
+    try {
+      const raw = g.dataset.images || "[]";
+      const arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr : [];
+    } catch {
+      return [];
+    }
+  }
+  
+  function ssRender() {
+    const modal = qs("#slideshowModal");
+    if (!modal) return;
+  
+    modal.setAttribute("aria-hidden", __SS.open ? "false" : "true");
+    modal.classList.toggle("is-open", __SS.open);
+  
+    if (!__SS.open) return;
+  
+    const img = qs("#modalImage");
+    const cap = qs("#modalCaption");
+    const ctr = qs("#modalCounter");
+  
+    const current = __SS.images[__SS.index] || {};
+    if (img) img.src = current.url || "";
+    if (cap) cap.textContent = current.caption || "";
+    if (ctr) ctr.textContent = `${__SS.index + 1} / ${__SS.images.length}`;
+  }
+  
+  function ssOpen(startIndex = 0) {
+    __SS.images = getGalleryImagesFromDOM();
+    if (!__SS.images.length) return;
+    __SS.index = Math.max(0, Math.min(__SS.images.length - 1, Number(startIndex) || 0));
+    __SS.open = true;
+    ssRender();
+  }
+  
+  function ssClose() {
+    __SS.open = false;
+    ssRender();
+  }
+  
+  function ssPrev() {
+    if (!__SS.images.length) return;
+    __SS.index = (__SS.index - 1 + __SS.images.length) % __SS.images.length;
+    ssRender();
+  }
+  
+  function ssNext() {
+    if (!__SS.images.length) return;
+    __SS.index = (__SS.index + 1) % __SS.images.length;
+    ssRender();
+  }
+  
+  function wireSlideshowFallback() {
+    // Open on gallery click (any thumbnail). Uses data-index if present.
+    const gallery = qs("#panelGallery");
+    if (gallery) {
+      gallery.addEventListener("click", (e) => {
+        const t = e.target.closest("[data-index], img, button, a, div");
+        if (!t) return;
+        const idx = t.getAttribute("data-index");
+        ssOpen(idx != null ? Number(idx) : 0);
+      });
+    }
+  
+    // Modal controls
+    qs("#modalOverlay")?.addEventListener("click", ssClose);
+    qs("#modalCloseBtn")?.addEventListener("click", ssClose);
+    qs("#modalPrevBtn")?.addEventListener("click", ssPrev);
+    qs("#modalNextBtn")?.addEventListener("click", ssNext);
+  
+    // Escape closes modal first
+    window.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      if (__SS.open) ssClose();
+    });
+  }
+
   function getReviewByIdSafe(s, id) {
     const num = (id === null || id === undefined || id === "") ? null : Number(id);
     if (!Number.isFinite(num)) return null;
@@ -169,6 +266,8 @@ function __rrMarkersKey(reviews) {
     safeWireTopbar();
     safeWirePanel();
     safeWireMobileToggle();
+
+	wireSlideshowFallback();
 
     window.RR_UI_COMMENTS?.wireComments?.();
     window.RR_UI_MODAL?.wireModal?.();
@@ -212,7 +311,10 @@ function __rrMarkersKey(reviews) {
 
   function safeWirePanel() {
     const close = qs("#panelCloseBtn");
-    if (close) close.addEventListener("click", () => actions.selectReview(null, "ui"));
+    if (close) close.addEventListener("click", () => {
+	  actions.selectReview(null, "ui");
+	  forcePanelClose();
+	});
   }
 
   function safeWireMobileToggle() {
@@ -312,6 +414,17 @@ function __rrMarkersKey(reviews) {
 
     const review = getReviewByIdSafe(s, s.ui.selectedReviewId);
     window.RR_UI_PANEL?.renderPanel?.(review);
+    
+    // Make panel reliably open/close even if panel module misses a case
+	if (review) forcePanelOpen();
+	else forcePanelClose();
+
+	// Provide slideshow images to fallback (expects review.images = [{url, caption}])
+	const gallery = qs("#panelGallery");
+	if (gallery) {
+	  const imgs = Array.isArray(review?.images) ? review.images : [];
+	  gallery.dataset.images = JSON.stringify(imgs);
+	}
 
     const meta = qs("#resultsMeta");
     if (meta) meta.textContent = `${list.length} recensioner`;

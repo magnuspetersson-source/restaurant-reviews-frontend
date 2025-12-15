@@ -434,3 +434,7 @@ a:hover{ text-decoration:underline; }
     min-height: 360px;
   }
 }
+
+#reviewPanel.is-hidden { display: none !important; }
+#slideshowModal { display: none; }
+#slideshowModal.is-open { display: block; }
