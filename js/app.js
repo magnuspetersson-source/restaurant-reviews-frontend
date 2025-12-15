@@ -172,7 +172,8 @@ function __rrMarkersKey(reviews) {
     // Init map (om nyckel finns)
     const mapEl = qs("#map");
     try {
-      await window.RR_MAP.initMap(mapEl);
+		if (window.RR_CONFIG_READY) await window.RR_CONFIG_READY;
+      	await window.RR_MAP.initMap(mapEl);
     } catch (e) {
       const hint = qs("#mapHint");
       hint.textContent = e.message || "Kunde inte initiera karta";
