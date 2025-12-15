@@ -147,6 +147,41 @@ function __rrMarkersKey(reviews) {
     if (typeof actions.setNetError === "function") actions.setNetError(key, val);
   }
 
+  function wireCommentForm() {
+    const form = qs("#commentForm");
+    if (!form) return;
+  
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+  
+      const note = qs("#commentNote");
+      const btn = qs("#commentSubmitBtn");
+  
+      const reviewId = window.RR_STATE?.state?.ui?.selectedReviewId;
+  
+      try {
+        if (btn) btn.disabled = true;
+        if (note) note.textContent = "Skickar…";
+  
+        await postComment(reviewId);
+  
+        // Rensa fält
+        const body = qs("#commentBody"); if (body) body.value = "";
+        // Ladda om kommentarer (om din comments-modul har loader)
+        if (window.RR_UI_COMMENTS?.loadComments) {
+          await window.RR_UI_COMMENTS.loadComments(reviewId);
+        }
+  
+        if (note) note.textContent = "Tack! Din kommentar är skickad. (Ej granskad)";
+      } catch (err) {
+        console.error("[RR] comment submit failed", err);
+        if (note) note.textContent = err?.message || "Kunde inte skicka kommentar";
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    });
+  }
+
   function forcePanelOpen() {
     const p = qs("#reviewPanel");
     if (!p) return;
@@ -262,7 +297,7 @@ function __rrMarkersKey(reviews) {
 
   async function init() {
     ensureAppMarkup();
-
+    wireCommentForm();
     safeWireTopbar();
     safeWirePanel();
     safeWireMobileToggle();
