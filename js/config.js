@@ -10,8 +10,15 @@ function normalizeBase(url) {
 }
 
 async function loadPublicConfig(apiBase) {
+  // Kör ALDRIG backend-fetch på localhost
+  if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
+    console.log("[RR] Skipping public-config fetch on localhost");
+    return {};
+  }
+
   const base = normalizeBase(apiBase);
   if (!base) return {};
+
   try {
     const res = await fetch(`${base}/api/public-config`, { credentials: "omit" });
     if (!res.ok) throw new Error(`public-config failed: HTTP ${res.status}`);
@@ -52,14 +59,14 @@ window.RR_CONFIG_READY = (async function bootstrap() {
 
   // --- Dynamic injection from backend (Vercel env) ---
   // If we don't already have a key, try fetching it from /api/public-config
+  // Backend-config är ENDAST fallback – aldrig override
   if (!cfg.googleMapsApiKey && cfg.apiBase) {
     const publicCfg = await loadPublicConfig(cfg.apiBase);
-
-    if (publicCfg && typeof publicCfg.googleMapsApiKey === "string" && publicCfg.googleMapsApiKey.trim()) {
+  
+    if (publicCfg?.googleMapsApiKey?.trim()) {
       cfg.googleMapsApiKey = publicCfg.googleMapsApiKey.trim();
     }
   }
-
   // Build public config used by frontend modules
   window.RR_PUBLIC_CONFIG = {
     apiBase: normalizeBase(cfg.apiBase || ""),

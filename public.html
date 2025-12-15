@@ -5,120 +5,148 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Restaurant Reviews (Local test)</title>
 
-  <!-- Undvik “svart canvas” lokalt om Squarespace normalt ger vit bakgrund -->
-  <style>
-    html, body { height: 100%; }
-    body { margin: 0; background: #fff; }
-    #app { min-height: 100vh; }
-    /* Debug overlay */
-    #rr-debug {
-      position: fixed; left: 12px; bottom: 12px; right: 12px;
-      max-width: 980px;
-      background: rgba(0,0,0,.86); color: #fff;
-      padding: 10px 12px; border-radius: 12px;
-      font: 12px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      z-index: 999999;
-      box-shadow: 0 10px 30px rgba(0,0,0,.25);
-    }
-    #rr-debug b { font-weight: 700; }
-    #rr-debug .muted { opacity: .7; }
-    #rr-debug pre {
-      margin: 8px 0 0; white-space: pre-wrap; word-break: break-word;
-      max-height: 160px; overflow: auto;
-    }
-  </style>
-
-  <!-- Samma CSS som Squarespace-kodblocket -->
   <link rel="stylesheet" href="https://magnuspetersson-source.github.io/restaurant-reviews-frontend/css/public.css" />
-
-  <!-- (valfritt) stoppa favicon 404 -->
   <link rel="icon" href="data:," />
 </head>
 <body>
 
   <div id="app" data-api-base="https://restaurant-reviews-backend-xi.vercel.app"></div>
-
-  <div id="rr-debug">
-    <div><b>RR local boot</b> <span class="muted">(logg nedan)</span></div>
-    <pre id="rr-log">Start…</pre>
-  </div>
-
   <script>
-  (function () {
-    var logEl = document.getElementById("rr-log");
-    function log(msg) {
-      console.log(msg);
-      if (!logEl) return;
-      logEl.textContent += "\n" + msg;
-      logEl.scrollTop = logEl.scrollHeight;
-    }
-
-    // Fånga fel FÖRE att vi laddar några scripts (viktigt!)
-    window.addEventListener("error", function (ev) {
-      log("[ERROR] " + (ev.message || ev.error || "Unknown error"));
-      if (ev.error && ev.error.stack) log(ev.error.stack);
-    });
-    window.addEventListener("unhandledrejection", function (ev) {
-      log("[UNHANDLED] " + (ev.reason && (ev.reason.stack || ev.reason.message) ? (ev.reason.stack || ev.reason.message) : String(ev.reason)));
-    });
-
-    function loadScriptSequential(src) {
-      return new Promise(function (resolve, reject) {
-        var s = document.createElement("script");
-        s.src = src;
-        s.async = false; // garantera ordning
-        s.onload = function () { resolve(); };
-        s.onerror = function () { reject(new Error("Failed to load: " + src)); };
-        document.head.appendChild(s);
-      });
-    }
-
-    async function bootstrap() {
-      log("Boot: försöker ladda /js/config.local.js …");
-      try {
-        await loadScriptSequential("/js/config.local.js");
-        log("OK: /js/config.local.js laddad");
-      } catch (e) {
-        log("INFO: ingen /js/config.local.js (ok i prod)");
-      }
-
-      // Snabb sanity-check (syns direkt i overlay)
-      try {
-        var key = window.RR_CONFIG && window.RR_CONFIG.googleMapsApiKey;
-        log("RR_CONFIG.googleMapsApiKey = " + (key ? ("(längd " + String(key).length + ")") : "MISSING"));
-      } catch (_) {}
-
-      var scripts = [
-        "https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js/config.js",
-        "https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js/utils/dom.js",
-        "https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js/utils/format.js",
-        "https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js/utils/sanitize.js",
-        "https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js/api.js",
-        "https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js/router.js",
-        "https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js/state.js",
-        "https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js/map/map.js",
-        "https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js/map/markers.js",
-        "https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js/ui/list.js",
-        "https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js/ui/panel.js",
-        "https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js/ui/comments.js",
-        "https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js/ui/slideshowModal.js",
-        "https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js/app.js"
-      ];
-
-      for (var i = 0; i < scripts.length; i++) {
-        log("Laddar: " + scripts[i].split("/").slice(-1)[0]);
-        await loadScriptSequential(scripts[i]);
-        log("OK: " + scripts[i].split("/").slice(-1)[0]);
-      }
-
-      log("✅ Alla scripts laddade. Om sidan fortfarande är tom: felet är nu synligt ovan.");
-    }
-
-    bootstrap().catch(function (e) {
-      log("[FATAL] " + (e && (e.stack || e.message) ? (e.stack || e.message) : String(e)));
-    });
-  })();
+    (function () {
+      var isLocal =
+        location.hostname === "localhost" ||
+        location.hostname === "127.0.0.1";
+  
+      if (!isLocal) return;
+  
+      var style = document.createElement("style");
+      style.id = "rr-local-dev-style";
+      style.textContent = `
+        /* ===========================
+           LOCAL DEV STYLES (ONLY)
+           =========================== */
+  
+        body {
+          background: #f5f5f5 !important;
+          color: #111 !important;
+        }
+  
+        #app {
+          background: #fff !important;
+          color: #111 !important;
+          min-height: 100vh;
+        }
+  
+        /* Text – tvinga läsbarhet */
+        h1, h2, h3, h4, h5, h6,
+        p, span, li, div, label {
+          color: #111 !important;
+        }
+  
+        a {
+          color: #005fcc !important;
+        }
+  
+        /* Review list */
+        .reviewItem,
+        .reviewCard,
+        .listItem {
+          background: #fafafa !important;
+          border: 1px solid #ddd !important;
+          border-radius: 6px;
+        }
+  
+        /* Panel */
+        aside.panel {
+          background: #ffffff !important;
+          color: #111 !important;
+          box-shadow: 0 0 0 1px #ddd, 0 10px 30px rgba(0,0,0,.15) !important;
+        }
+  
+        aside.panel * {
+          color: #111 !important;
+        }
+  
+        /* Buttons */
+        button,
+        .btn,
+        .iconBtn {
+          background: #eee !important;
+          color: #111 !important;
+          border: 1px solid #ccc !important;
+        }
+  
+        button:hover {
+          background: #e0e0e0 !important;
+        }
+  
+        /* Inputs / textarea */
+        input,
+        textarea,
+        select {
+          background: #fff !important;
+          color: #111 !important;
+          border: 1px solid #bbb !important;
+        }
+  
+        /* Google map container */
+        #map,
+        .map,
+        .mapContainer {
+          background: #ddd !important;
+        }
+  
+        /* Slideshow modal */
+        .slideshowModal,
+        .modal,
+        .overlay {
+          background: rgba(0,0,0,.6) !important;
+        }
+  
+        .slideshowModal img {
+          background: #000 !important;
+        }
+  
+        /* Debug helper (optional) */
+        .debug,
+        .devOnly {
+          outline: 1px dashed red;
+        }
+      `;
+  
+      document.head.appendChild(style);
+      console.log("[RR] Local dev styles injected");
+    })();
   </script>
+  <!--
+    VIKTIGT: Se till att config.local.js exekverar INNAN config.js (ingen race).
+    document.write gör att script-taggen hamnar "i flödet" före defer-kedjan.
+  -->
+  <script>
+    (function () {
+      var isLocal = (location.hostname === "localhost" || location.hostname === "127.0.0.1");
+      if (!isLocal) return;
+      var v = Date.now(); // cache-bust
+      document.write('<script src="/js/config.local.js?v=' + v + '"><\/script>');
+      console.log("[RR] Injected blocking /js/config.local.js");
+    })();
+  </script>
+
+  <!-- Resten: så nära Squarespace-kodblocket som möjligt -->
+  <script src="https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js/config.js" defer></script>
+  <script src="https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js/utils/dom.js" defer></script>
+  <script src="https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js/utils/format.js" defer></script>
+  <script src="https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js/utils/sanitize.js" defer></script>
+  <script src="https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js/api.js" defer></script>
+  <script src="https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js/router.js" defer></script>
+  <script src="https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js/state.js" defer></script>
+  <script src="https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js/map/map.js" defer></script>
+  <script src="https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js/map/markers.js" defer></script>
+  <script src="https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js/ui/list.js" defer></script>
+  <script src="https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js/ui/panel.js" defer></script>
+  <script src="https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js/ui/comments.js" defer></script>
+  <script src="https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js/ui/slideshowModal.js" defer></script>
+  <script src="https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js/app.js" defer></script>
 
 </body>
 </html>
