@@ -2,7 +2,6 @@ function ensureAppMarkup() {
   const root = document.getElementById("app");
   if (!root) throw new Error("Missing #app root");
 
-  // Om topbaren redan finns, gör inget
   if (document.getElementById("sortSelect")) return;
 
   root.innerHTML = `
@@ -130,31 +129,39 @@ function ensureAppMarkup() {
   `;
 }
 
-// === Best practice: rebuild markers only when list changes ===
+// Build markers only when list changes
 let __RR_MARKERS_KEY = "";
 function __rrMarkersKey(reviews) {
-  return (reviews || [])
-    .map((r) => `${r.id}:${r.restaurant_lat}:${r.restaurant_lng}`)
-    .join("|");
+  return (reviews || []).map(r => `${r.id}:${r.restaurant_lat}:${r.restaurant_lng}`).join("|");
 }
 
 (function () {
   const { qs, setHidden } = window.RR_DOM;
   const { actions, selectors, state, subscribe } = window.RR_STATE;
 
-  async function init() {
-    // Wire UI controls + ensure DOM exists
-    ensureAppMarkup();
-    wireTopbar();
-    wirePanel();
-    window.RR_UI_COMMENTS.wireComments();
-    window.RR_UI_MODAL.wireModal();
-    wireMobileToggle();
+  // Crash-catchers (så du alltid ser orsaken)
+  window.addEventListener("error", (e) => {
+    console.error("[RR] window.error", e.message, e.filename, e.lineno, e.colno, e.error);
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    console.error("[RR] unhandledrejection", e.reason);
+  });
 
-    // Subscribe render BEFORE we start loading & mutating state
+  async function init() {
+    ensureAppMarkup();
+
+    safeWireTopbar();
+    safeWirePanel();
+    safeWireMobileToggle();
+
+    // Wire comments/modal om de finns
+    window.RR_UI_COMMENTS?.wireComments?.();
+    window.RR_UI_MODAL?.wireModal?.();
+
+    // Subscribe render tidigt
     subscribe(render);
 
-    // Map init
+    // Init map (om nyckel finns)
     const mapEl = qs("#map");
     try {
       await window.RR_MAP.initMap(mapEl);
@@ -164,18 +171,44 @@ function __rrMarkersKey(reviews) {
       setHidden(hint, false);
     }
 
-    // Load data
     await loadReviewsOnce();
 
-    // Initial selection from URL
-    const initialId = window.RR_ROUTER.getSelectedId();
+    // initial selection från URL (om vi har review)
+    const initialId = window.RR_ROUTER?.getSelectedId?.();
     if (initialId && state.data.byId[initialId]) {
-      actions.selectReview(initialId, "router");
-      await window.RR_UI_COMMENTS.loadComments(initialId);
+      actions.selectReview(initialId); // state.js ignorerar extra args ändå
+      await window.RR_UI_COMMENTS?.loadComments?.(initialId);
     }
 
-    // Initial render
     render(state);
+  }
+
+  function safeWireTopbar() {
+    const sort = qs("#sortSelect");
+    const type = qs("#typeSelect");
+    const price = qs("#priceSelect");
+    const min = qs("#minRatingSelect");
+
+    if (sort) sort.addEventListener("change", (e) => actions.setSort(e.target.value));
+    if (type) type.addEventListener("change", (e) => actions.setFilter("type", e.target.value));
+    if (price) price.addEventListener("change", (e) => actions.setFilter("price", e.target.value));
+    if (min) min.addEventListener("change", (e) => actions.setFilter("minRating", e.target.value));
+  }
+
+  function safeWirePanel() {
+    const close = qs("#panelCloseBtn");
+    if (close) close.addEventListener("click", () => actions.selectReview(null));
+  }
+
+  function safeWireMobileToggle() {
+    const toggle = qs("#mobileToggle");
+    if (!toggle) return;
+
+    toggle.addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-mode]");
+      if (!btn) return;
+      actions.setViewMode(btn.getAttribute("data-mode"));
+    });
   }
 
   async function loadReviewsOnce() {
@@ -190,53 +223,44 @@ function __rrMarkersKey(reviews) {
       const reviews = await window.RR_API.getReviews();
       actions.setReviews(reviews);
 
-      // fill type dropdown once
-      window.RR_UI_LIST.renderTypeOptions(reviews);
+      // Type options (om din list-modul har den)
+      try {
+        window.RR_UI_LIST?.renderTypeOptions?.(reviews);
+      } catch (e) {
+        console.warn("[RR] renderTypeOptions failed (ok to ignore):", e);
+      }
 
       setHidden(statusArea, true);
     } catch (e) {
-      actions.setNetError("reviews", e.message || "Kunde inte hämta recensioner");
-      statusArea.textContent = `Fel: ${e.message || "Kunde inte hämta recensioner"}`;
+      const msg = e?.message || "Kunde inte hämta recensioner";
+      actions.setNetError("reviews", msg);
+      statusArea.textContent = `Fel: ${msg}`;
       setHidden(statusArea, false);
+      console.error("[RR] loadReviewsOnce failed:", e);
     } finally {
       actions.setNetLoading("reviews", false);
     }
-  }
-
-  function wireTopbar() {
-    qs("#sortSelect").addEventListener("change", (e) => actions.setSort(e.target.value));
-    qs("#typeSelect").addEventListener("change", (e) => actions.setFilter("type", e.target.value));
-    qs("#priceSelect").addEventListener("change", (e) => actions.setFilter("price", e.target.value));
-    qs("#minRatingSelect").addEventListener("change", (e) => actions.setFilter("minRating", e.target.value));
-  }
-
-  function wirePanel() {
-    qs("#panelCloseBtn").addEventListener("click", () => actions.selectReview(null, "ui"));
-  }
-
-  function wireMobileToggle() {
-    const toggle = qs("#mobileToggle");
-    toggle.addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-mode]");
-      if (!btn) return;
-      actions.setViewMode(btn.getAttribute("data-mode"));
-    });
   }
 
   function applyMobileMode(viewMode) {
     const isMobile = window.matchMedia("(max-width: 980px)").matches;
     const colList = qs("#colList");
     const colMap = qs("#colMap");
-    const btns = Array.from(qs("#mobileToggle").querySelectorAll("button"));
+    const toggle = qs("#mobileToggle");
 
     if (!isMobile) {
       colMap.style.display = "";
       colList.style.display = "";
-      btns.forEach((b) => b.classList.remove("is-active"));
+      if (toggle) toggle.querySelectorAll("button").forEach(b => b.classList.remove("is-active"));
       return;
     }
 
-    btns.forEach((b) => b.classList.toggle("is-active", b.getAttribute("data-mode") === viewMode));
+    if (toggle) {
+      toggle.querySelectorAll("button").forEach((b) =>
+        b.classList.toggle("is-active", b.getAttribute("data-mode") === viewMode)
+      );
+    }
+
     if (viewMode === "map") {
       colMap.style.display = "block";
       colList.style.display = "none";
@@ -247,59 +271,31 @@ function __rrMarkersKey(reviews) {
   }
 
   function render(s) {
-    // List + markers based on filtered/sorted
     const list = selectors.getFilteredSortedReviews();
-    window.RR_UI_LIST.renderList(list, s.ui.selectedReviewId);
 
-    // Map markers: rebuild ONLY if list changed, selection handled separately
-    if (window.RR_MAP.getMap && window.RR_MAP.getMap() && window.google && google.maps) {
+    // List render (din list.js ska finnas som RR_UI_LIST)
+    window.RR_UI_LIST?.renderList?.(list, s.ui.selectedReviewId);
+
+    // Markers best-practice
+    if (window.RR_MAP?.getMap?.() && window.google && google.maps) {
       const key = __rrMarkersKey(list);
       if (key !== __RR_MARKERS_KEY) {
         __RR_MARKERS_KEY = key;
-        // IMPORTANT: do not pass selectedId into renderMarkers to avoid loops
-        window.RR_MARKERS.renderMarkers(list, null, (id) => actions.selectReview(id, "map"));
+        window.RR_MARKERS.renderMarkers(list, null, (id) => actions.selectReview(id));
       }
       window.RR_MARKERS.highlightSelected(s.ui.selectedReviewId);
     }
 
     // Panel
     const review = s.ui.selectedReviewId ? s.data.byId[s.ui.selectedReviewId] : null;
-    window.RR_UI_PANEL.renderPanel(review);
-
-    // Comments (for selected)
-    if (s.ui.selectedReviewId) {
-      const comments = s.data.commentsByReviewId[String(s.ui.selectedReviewId)] || [];
-      window.RR_UI_COMMENTS.renderComments(comments);
-    } else {
-      window.RR_UI_COMMENTS.renderComments([]);
-    }
-
-    // Slideshow modal
-    window.RR_UI_MODAL.renderSlideshow(s.ui.slideshow);
+    window.RR_UI_PANEL?.renderPanel?.(review);
 
     // Meta
     const meta = qs("#resultsMeta");
-    meta.textContent = `${list.length} recensioner`;
+    if (meta) meta.textContent = `${list.length} recensioner`;
 
-    // Mobile mode
     applyMobileMode(s.ui.viewMode);
   }
-
-  // When selection changes: load comments (if not already loaded)
-  subscribe(async (s) => {
-    const id = s.ui.selectedReviewId;
-    if (!id) return;
-    if (s.data.commentsByReviewId[String(id)]) return;
-    await window.RR_UI_COMMENTS.loadComments(id);
-  });
-
-  // Close panel on escape (when not in slideshow)
-  window.addEventListener("keydown", (e) => {
-    if (e.key !== "Escape") return;
-    const { state } = window.RR_STATE;
-    if (state.ui.slideshow.open) return;
-    if (state.ui.selectedReviewId) window.RR_STATE.actions.selectReview(null, "escape");
-  });
 
   document.addEventListener("DOMContentLoaded", init);
 })();
