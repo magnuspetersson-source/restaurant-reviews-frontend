@@ -357,3 +357,80 @@ a:hover{ text-decoration:underline; }
   .panel{ width: min(520px, 100%); }
   .row{ grid-template-columns: 1fr; }
 }
+
+/* ================================
+   Squarespace theme inheritance
+   ================================ */
+
+#app, #app * {
+  font-family: inherit !important;
+  color: inherit !important;
+}
+
+/* Topbar: transparent, theme-owned */
+#app .topbar {
+  background: transparent !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+#app .brand__title,
+#app .brand__sub {
+  color: inherit !important;
+  text-shadow: none !important;
+}
+
+/* Controls: readable but light */
+#app .control {
+  background: rgba(255,255,255,.85) !important;
+  border: 1px solid rgba(0,0,0,.16) !important;
+  color: inherit !important;
+}
+
+@media (max-width: 980px) {
+  #app .control {
+    background: rgba(255,255,255,.92) !important;
+  }
+}
+
+/* Review cards */
+#app .card {
+  background: rgba(255,255,255,.92) !important;
+  border: 1px solid rgba(0,0,0,.14) !important;
+  border-radius: 14px;
+  box-shadow: 0 1px 8px rgba(0,0,0,.06);
+}
+
+#app .card:hover {
+  border-color: rgba(0,0,0,.22) !important;
+}
+
+#app .card.is-selected {
+  outline: 3px solid rgba(0,0,0,.10);
+}
+
+#app .card__title {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+/* Panel */
+#app #reviewPanel {
+  background: rgba(255,255,255,.92) !important;
+  border: 1px solid rgba(0,0,0,.14) !important;
+}
+
+/* Map height safety */
+#app #colMap,
+#app #map {
+  min-height: 420px;
+}
+
+@media (max-width: 980px) {
+  #app #colMap,
+  #app #map {
+    min-height: 360px;
+  }
+}
