@@ -139,6 +139,13 @@ function __rrMarkersKey(reviews) {
   const { qs, setHidden } = window.RR_DOM;
   const { actions, selectors, state, subscribe } = window.RR_STATE;
 
+  function setNetLoadingSafe(key, val) {
+    if (typeof actions.setNetLoading === "function") actions.setNetLoading(key, val);
+  }
+  function setNetErrorSafe(key, val) {
+    if (typeof actions.setNetError === "function") actions.setNetError(key, val);
+  }
+
   // Crash-catchers (så du alltid ser orsaken)
   window.addEventListener("error", (e) => {
     console.error("[RR] window.error", e.message, e.filename, e.lineno, e.colno, e.error);
@@ -212,8 +219,8 @@ function __rrMarkersKey(reviews) {
   }
 
   async function loadReviewsOnce() {
-    actions.setNetLoading("reviews", true);
-    actions.setNetError("reviews", null);
+    setNetLoadingSafe("reviews", true);
+    setNetErrorSafe("reviews", null);
 
     const statusArea = qs("#statusArea");
     statusArea.textContent = "Laddar recensioner…";
@@ -233,12 +240,12 @@ function __rrMarkersKey(reviews) {
       setHidden(statusArea, true);
     } catch (e) {
       const msg = e?.message || "Kunde inte hämta recensioner";
-      actions.setNetError("reviews", msg);
+      setNetErrorSafe("reviews", msg);
       statusArea.textContent = `Fel: ${msg}`;
       setHidden(statusArea, false);
       console.error("[RR] loadReviewsOnce failed:", e);
     } finally {
-      actions.setNetLoading("reviews", false);
+      asetNetLoadingSafe("reviews", false);
     }
   }
 
