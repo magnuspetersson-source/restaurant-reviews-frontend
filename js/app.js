@@ -312,11 +312,15 @@ function __rrMarkersKey(reviews) {
   function safeWirePanel() {
     const close = qs("#panelCloseBtn");
     if (close) close.addEventListener("click", () => {
-	  actions.selectReview(null, "ui");
-	  forcePanelClose();
-	});
+      actions.selectReview(null, "ui");
+      const panelEl = qs("#reviewPanel");
+      if (panelEl) {
+        panelEl.setAttribute("aria-hidden", "true");
+        panelEl.style.display = "none";
+      }
+    });
   }
-
+  
   function safeWireMobileToggle() {
     const toggle = qs("#mobileToggle");
     if (!toggle) return;
@@ -414,6 +418,14 @@ function __rrMarkersKey(reviews) {
 
     const review = getReviewByIdSafe(s, s.ui.selectedReviewId);
     window.RR_UI_PANEL?.renderPanel?.(review);
+   
+   // --- Force panel open/close (Squarespace-safe) ---
+   const panelEl = qs("#reviewPanel");
+   if (panelEl) {
+     const open = !!review;
+     panelEl.setAttribute("aria-hidden", open ? "false" : "true");
+     panelEl.style.display = open ? "block" : "none";
+   }
     
     // Make panel reliably open/close even if panel module misses a case
 	if (review) forcePanelOpen();
