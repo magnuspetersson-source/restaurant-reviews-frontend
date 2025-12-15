@@ -309,8 +309,22 @@ function __rrMarkersKey(reviews) {
     qs("#minRatingSelect")?.addEventListener("change", (e) => actions.setFilter("minRating", e.target.value));
   }
 
+  // Panel close: delegated catcher + direct listener (belt & suspenders)
   function wirePanelClose() {
-    qs("#panelCloseBtn")?.addEventListener("click", () => actions.selectReview(null, "ui"));
+    // delegated (survives rerenders/overlays)
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest("#panelCloseBtn");
+      if (!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      actions.selectReview(null, "ui");
+    }, true);
+
+    // direct (nice-to-have)
+    qs("#panelCloseBtn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      actions.selectReview(null, "ui");
+    });
   }
 
   function wireMobileToggle() {
@@ -402,12 +416,12 @@ function __rrMarkersKey(reviews) {
     const review = getReviewByIdSafe(s, s.ui.selectedReviewId);
     window.RR_UI_PANEL?.renderPanel?.(review);
 
-    // Panel visibility (single source of truth)
+    // Panel visibility (SINGLE source of truth + forced !important)
     const panelEl = qs("#reviewPanel");
     if (panelEl) {
       const open = !!review;
       panelEl.setAttribute("aria-hidden", open ? "false" : "true");
-      panelEl.style.display = open ? "block" : "none";
+      panelEl.style.setProperty("display", open ? "block" : "none", "important");
     }
 
     // Slideshow images for fallback
@@ -434,8 +448,8 @@ function __rrMarkersKey(reviews) {
     wireCommentForm();
     wireSlideshowFallback();
 
-    // External modules can still wire themselves if present
-    window.RR_UI_COMMENTS?.wireComments?.();
+    // IMPORTANT: do NOT wire RR_UI_COMMENTS here, it causes double-submit
+    // window.RR_UI_COMMENTS?.wireComments?.();
     window.RR_UI_MODAL?.wireModal?.();
 
     subscribe(render);
@@ -459,6 +473,13 @@ function __rrMarkersKey(reviews) {
       actions.selectReview(initialReview.id, "router");
       await window.RR_UI_COMMENTS?.loadComments?.(initialReview.id);
     }
+
+    // Close on Escape (nice UX)
+    window.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      if (window.RR_STATE?.state?.ui?.selectedReviewId != null) actions.selectReview(null, "escape");
+      if (__SS.open) ssClose();
+    });
 
     render(state);
   }
