@@ -245,7 +245,7 @@ function __rrMarkersKey(reviews) {
       setHidden(statusArea, false);
       console.error("[RR] loadReviewsOnce failed:", e);
     } finally {
-      asetNetLoadingSafe("reviews", false);
+      setNetLoadingSafe("reviews", false);
     }
   }
 
