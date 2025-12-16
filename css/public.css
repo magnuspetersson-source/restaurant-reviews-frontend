@@ -1,37 +1,28 @@
 /* =========================================================
-   Restaurant Reviews (Public) — Squarespace-first CSS
-   - Minimal brand styling, maximal theme inheritance
-   - Fix for Squarespace header click-through (z-index + scrim)
+   Restaurant Reviews (Public) — Squarespace-first CSS (CLEAN)
+   Fix: Squarespace header overlay steals clicks (z-index)
    ========================================================= */
 
-/* ---------- Tokens (app scoped) ---------- */
+/* ---------- Tokens (scoped) ---------- */
 :root{
-  /* Layout */
   --rr-gap: 14px;
   --rr-radius: 16px;
   --rr-radius2: 22px;
   --rr-shadow: 0 16px 48px rgba(0,0,0,.25);
 
-  /* Surfaces (light by default; will still feel Squarespace-native) */
   --rr-surface: rgba(255,255,255,.92);
   --rr-surface2: rgba(255,255,255,.80);
   --rr-border: rgba(0,0,0,.14);
   --rr-border-strong: rgba(0,0,0,.22);
 
-  /* Text */
   --rr-muted: rgba(0,0,0,.62);
 
-  /* Accents */
-  --rr-focus: rgba(0,0,0,.18);
-
-  /* Map */
   --rr-map-min-h: 420px;
   --rr-map-min-h-mobile: 360px;
 
-  /* Panel */
   --rr-panel-w: 520px;
 
-  /* Stacking (must beat Squarespace header portals) */
+  /* Stacking: keep RR above Squarespace header */
   --rr-z-app: 2147483000;
   --rr-z-scrim: 2147483100;
   --rr-z-panel: 2147483200;
@@ -43,26 +34,28 @@
 html,body{ height:100%; }
 body{ margin:0; }
 
-/* === HARD OVERRIDE: ensure open panel is visible === */
-#reviewPanel.is-open {
-  left: auto !important;
-  right: 0 !important;
-  transform: translateX(0) !important;
-  visibility: visible !important;
-  opacity: 1 !important;
+/* =========================================================
+   CRITICAL: Squarespace header layers
+   - Your click target proved header sits above panel.
+   - We force header z-index BELOW RR.
+   ========================================================= */
+.header-announcement-bar-wrapper,
+.Header,
+header.Header,
+.sqs-announcement-bar,
+.sqs-site-header,
+.site-header{
+  position: relative;
+  z-index: 10 !important; /* keep it sane; RR uses ~2.1b */
 }
 
-#reviewPanel {
-  max-width: min(520px, 100vw);
-}
-
+/* RR root creates reliable stacking context */
 #app{
-  /* Create a reliable stacking root */
   position: relative;
   z-index: var(--rr-z-app);
 }
 
-/* Inherit Squarespace typography/colors by default */
+/* Inherit Squarespace typography/colors */
 #app, #app *{
   font-family: inherit;
   color: inherit;
@@ -78,7 +71,7 @@ body{ margin:0; }
 #app .topbar{
   position: sticky;
   top: 0;
-  z-index: 10; /* inside app; panel/modal use much higher */
+  z-index: 10;
   background: transparent;
   padding: 14px 16px;
   display:flex;
@@ -106,14 +99,6 @@ body{ margin:0; }
 }
 
 #app .control:focus{
-  border-color: var(--rr-border-strong);
-  box-shadow: 0 0 0 4px rgba(0,0,0,.06);
-}
-
-/* Distance toggle buttons can reuse .control look */
-#app .distanceToggle{ display:flex; gap:8px; align-items:center; }
-#app .rr-toggle{ cursor:pointer; }
-#app .rr-toggle.is-active{
   border-color: var(--rr-border-strong);
   box-shadow: 0 0 0 4px rgba(0,0,0,.06);
 }
@@ -196,18 +181,11 @@ body{ margin:0; }
 }
 #app .card__stars{ letter-spacing:.8px; }
 #app .card__date{ opacity:.75; }
-
-#app .card__row2{
-  margin-top:6px;
-  opacity:.75;
-  font-size:13px;
-}
+#app .card__row2{ margin-top:6px; opacity:.75; font-size:13px; }
 
 /* Map */
 #app #colMap,
-#app #map{
-  min-height: var(--rr-map-min-h);
-}
+#app #map{ min-height: var(--rr-map-min-h); }
 #app .map{ position:absolute; inset:0; }
 #app .mapHint{
   position:absolute; left:12px; bottom:12px; z-index:2;
@@ -220,20 +198,22 @@ body{ margin:0; }
 }
 
 /* =========================================================
-   Panel: RIGHT drawer, always above Squarespace header
+   Panel (RIGHT drawer)
+   - One source of truth for positioning + transform
+   - Scrim blocks clicks to Squarespace header
    ========================================================= */
-#app #reviewPanel,
-#app .panel{
-  position: fixed;
+#reviewPanel{
+  position: fixed !important;
   top: 0;
   right: 0;
-  left: auto;
+  left: auto !important;
   width: min(var(--rr-panel-w), 100%);
+  max-width: min(520px, 100vw);
   height: 100%;
   background: var(--rr-surface);
   border-left: 1px solid var(--rr-border);
   box-shadow: var(--rr-shadow);
-  z-index: var(--rr-z-panel);
+  z-index: var(--rr-z-panel) !important;
   pointer-events: auto;
 
   transform: translateX(105%);
@@ -242,14 +222,33 @@ body{ margin:0; }
   flex-direction:column;
 }
 
-/* Open state (your app.js should toggle .is-open) */
-#app .panel.is-open{ transform: translateX(0); }
+/* Open state (app.js toggles .is-open) */
+#reviewPanel.is-open{
+  transform: translateX(0) !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
 
-/* Header should stay clickable and on top */
+/* Scrim BEHIND panel content but ABOVE page */
+#reviewPanel.is-open::before{
+  content:"";
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.18);
+  z-index: var(--rr-z-scrim);
+  pointer-events: auto;
+}
+
+/* Make sure panel content is above scrim */
+#reviewPanel > *{
+  position: relative;
+  z-index: var(--rr-z-panel-ui);
+}
+
+/* Header stays clickable */
 #app .panel__header{
   position: sticky;
   top: 0;
-  z-index: var(--rr-z-panel-ui);
   background: inherit;
   padding: 14px 14px 10px 14px;
   border-bottom: 1px solid var(--rr-border);
@@ -260,8 +259,8 @@ body{ margin:0; }
 #app .panel__meta{ opacity:.75; font-size:13px; margin-top:6px; display:flex; gap:10px; flex-wrap:wrap; }
 #app .panel__body{ padding:14px; overflow:auto; height:100%; }
 
-/* Close button must be clickable above everything */
-#app #panelCloseBtn{
+/* Close button must be clickable */
+#panelCloseBtn{
   pointer-events: auto !important;
   position: relative;
   z-index: var(--rr-z-panel-ui);
@@ -275,16 +274,6 @@ body{ margin:0; }
   cursor: pointer;
 }
 #app .iconBtn:hover{ border-color: var(--rr-border-strong); }
-
-/* --- Scrim to block clicks to Squarespace header underneath --- */
-#app .panel.is-open::before{
-  content:"";
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.18);
-  z-index: var(--rr-z-scrim);
-  pointer-events: auto;
-}
 
 /* =========================================================
    Gallery + content + comments
@@ -378,7 +367,7 @@ body{ margin:0; }
 #app .formNote{ opacity:.75; font-size:12px; }
 
 /* =========================================================
-   Modal slideshow — always above everything
+   Modal slideshow — above everything
    ========================================================= */
 #app .modal{
   position: fixed;
@@ -444,7 +433,7 @@ body{ margin:0; }
 #app .modal__caption{ padding: 0 12px 8px 12px; opacity:.75; font-size: 13px; }
 #app .modal__counter{ padding: 0 12px 10px 12px; opacity:.7; font-size: 12px; }
 
-/* InfoWindow (from markers.js) */
+/* InfoWindow */
 #app .rr-iw{ font-size: 13px; line-height: 1.35; }
 #app .rr-iw__title{ font-weight: 700; margin-bottom: 4px; }
 #app .rr-iw__meta{ opacity:.85; display:flex; gap:8px; align-items:baseline; margin-bottom: 4px; }
@@ -463,5 +452,3 @@ body{ margin:0; }
 
   #app #colMap, #app #map{ min-height: var(--rr-map-min-h-mobile); }
 }
-
-/* Safety: never hide modal by ID rules outside #app */

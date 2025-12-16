@@ -5,57 +5,84 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Restaurant Reviews</title>
 
-  <!-- Samma CSS som Squarespace -->
-  <link
-    rel="stylesheet"
-    href="https://magnuspetersson-source.github.io/restaurant-reviews-frontend/css/public.css"
-  />
-
   <link rel="icon" href="data:," />
+
+  <script>
+    // Definiera "local mode" tidigt så vi kan välja CSS-källa
+    (function () {
+      const host = location.hostname;
+      const isSquarespace = host.includes("squarespace.com");
+      const isGithubPages = host === "magnuspetersson-source.github.io";
+      window.__RR_IS_LOCAL__ = !isSquarespace && !isGithubPages;
+      console.log("[RR] host:", host, "isLocal:", window.__RR_IS_LOCAL__);
+    })();
+  </script>
+
+  <!-- CSS: lokalt från /css, annars från GitHub Pages -->
+  <script>
+    (function () {
+      const isLocal = !!window.__RR_IS_LOCAL__;
+      const v = isLocal ? ("?v=" + Date.now()) : "";
+      const gh = "https://magnuspetersson-source.github.io/restaurant-reviews-frontend";
+
+      const href = isLocal
+        ? (location.origin + "/css/public.css" + v)
+        : (gh + "/css/public.css");
+
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = href;
+      document.head.appendChild(link);
+
+      console.log("[RR] CSS:", href);
+    })();
+  </script>
+
+  <!-- Local dev styles för läsbarhet (endast lokalt) -->
+  <script>
+    (function () {
+      if (!window.__RR_IS_LOCAL__) return;
+
+      const style = document.createElement("style");
+      style.id = "rr-local-dev-style";
+      style.textContent = `
+        body { background:#f2f2f2 !important; color:#111 !important; }
+        #app { background:#fff !important; min-height:100vh; }
+        h1,h2,h3,h4,h5,h6,p,span,div,li,label { color:#111 !important; }
+        a { color:#005fcc !important; }
+        aside.panel { background:#fff !important; color:#111 !important; box-shadow:0 10px 30px rgba(0,0,0,.15) !important; }
+        button,.btn,.iconBtn { background:#eee !important; color:#111 !important; border:1px solid #ccc !important; }
+        input,textarea,select { background:#fff !important; color:#111 !important; border:1px solid #bbb !important; }
+        #map,.map,.mapContainer { background:#ddd !important; }
+      `;
+      document.head.appendChild(style);
+      console.log("[RR] Local dev styles active");
+    })();
+  </script>
 </head>
 <body>
 
   <div id="app" data-api-base="https://restaurant-reviews-backend-xi.vercel.app"></div>
 
+  <!-- Blockerande local config (endast lokalt) -->
   <script>
     (function () {
-      // LOCAL MODE = allt som INTE är GitHub Pages eller Squarespace
-      const host = location.hostname;
-      const isSquarespace = host.includes("squarespace.com");
-      const isGithubPages = host === "magnuspetersson-source.github.io";
-      const isLocal = !isSquarespace && !isGithubPages;
+      if (!window.__RR_IS_LOCAL__) return;
+      const v = Date.now();
+      document.write('<script src="' + location.origin + '/js/config.local.js?v=' + v + '"><\/script>');
+      console.log("[RR] Injected blocking config.local.js");
+    })();
+  </script>
 
-      // Logga så du ser direkt vilket läge den kör i
-      console.log("[RR] host:", host);
-      console.log("[RR] isLocal:", isLocal);
+  <!-- JS-kedjan: lokalt från /js, annars från GitHub Pages -->
+  <script>
+    (function () {
+      const isLocal = !!window.__RR_IS_LOCAL__;
+      const ghBase = "https://magnuspetersson-source.github.io/restaurant-reviews-frontend";
+      const base = isLocal ? location.origin : ghBase;
+      const v = isLocal ? ("?v=" + Date.now()) : "";
 
-      // Local dev style (endast lokalt)
-      if (isLocal) {
-        const style = document.createElement("style");
-        style.id = "rr-local-dev-style";
-        style.textContent = `
-          body { background:#f2f2f2 !important; color:#111 !important; }
-          #app { background:#fff !important; min-height:100vh; }
-          h1,h2,h3,h4,h5,h6,p,span,div,li,label { color:#111 !important; }
-          a { color:#005fcc !important; }
-          aside.panel { background:#fff !important; color:#111 !important; box-shadow:0 10px 30px rgba(0,0,0,.15) !important; }
-          button,.btn,.iconBtn { background:#eee !important; color:#111 !important; border:1px solid #ccc !important; }
-          input,textarea,select { background:#fff !important; color:#111 !important; border:1px solid #bbb !important; }
-          #map,.map,.mapContainer { background:#ddd !important; }
-        `;
-        document.head.appendChild(style);
-        console.log("[RR] Local dev styles active");
-      }
-
-      // BLOCKING local config (måste in före config.js)
-      if (isLocal) {
-        const v = Date.now();
-        document.write('<script src="' + location.origin + '/js/config.local.js?v=' + v + '"><\/script>');
-        console.log("[RR] Injected blocking config.local.js from", location.origin + "/js/config.local.js");
-      }
-
-      // Script paths (samma som Squarespace-kedjan)
-      const paths = [
+      const scripts = [
         "/js/config.js",
         "/js/utils/dom.js",
         "/js/utils/format.js",
@@ -72,18 +99,14 @@
         "/js/app.js"
       ];
 
-      const ghBase = "https://magnuspetersson-source.github.io/restaurant-reviews-frontend";
-      const v = isLocal ? ("?v=" + Date.now()) : "";
-
-      for (const p of paths) {
+      for (const p of scripts) {
         const s = document.createElement("script");
-        // Tvinga lokalt att bli samma origin (så det aldrig kan bli GitHub av misstag)
-        s.src = isLocal ? (location.origin + p + v) : (ghBase + p);
+        s.src = base + p + v;
         s.defer = true;
         document.head.appendChild(s);
       }
 
-      console.log("[RR] JS base:", isLocal ? (location.origin + "/js/...") : (ghBase + "/js/..."));
+      console.log("[RR] JS base:", base + "/js/...");
     })();
   </script>
 
