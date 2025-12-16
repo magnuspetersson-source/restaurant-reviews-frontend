@@ -415,13 +415,15 @@ function ensureAppMarkup() {
   }
 
   function wirePanelClose() {
-    document.addEventListener("click", (e) => {
-      const btn = e.target.closest("#panelCloseBtn");
-      if (!btn) return;
+    const btn = qs("#panelCloseBtn");
+    if (!btn) return;
+  
+    btn.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
       actions.selectReview(null, "ui");
-    }, true);
+    });
+  }
 
     qs("#panelCloseBtn")?.addEventListener("click", (e) => {
       e.preventDefault();
@@ -536,9 +538,26 @@ function ensureAppMarkup() {
       window.RR_MARKERS.highlightSelected?.(s.ui.selectedReviewId);
     }
 
-    // Panel content
+    // Panel content & visibility
     const review = getReviewByIdSafe(s, s.ui.selectedReviewId);
+    const panelEl = qs("#reviewPanel");
+    
+    if (!review) {
+      // HARD CLOSE
+      if (panelEl) {
+        panelEl.setAttribute("aria-hidden", "true");
+        panelEl.style.display = "none";
+      }
+      return; // ⬅️ SUPER VIKTIGT
+    }
+    
+    // Only render panel when we actually have a review
     window.RR_UI_PANEL?.renderPanel?.(review);
+    
+    if (panelEl) {
+      panelEl.setAttribute("aria-hidden", "false");
+      panelEl.style.display = "block";
+    }
 
     // Panel visibility
     const panelEl = qs("#reviewPanel");
