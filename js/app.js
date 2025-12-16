@@ -415,13 +415,20 @@ function ensureAppMarkup() {
   }
 
   function wirePanelClose() {
-
-    qs("#panelCloseBtn")?.addEventListener("click", (e) => {
-      e.preventDefault();
-      actions.selectReview(null, "ui");
-    });
+    const btn = qs("#panelCloseBtn");
+    if (!btn) return;
+  
+    btn.addEventListener(
+      "mousedown",
+      (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        actions.selectReview(null, "ui");
+      },
+      true // capture
+    );
   }
-
+  
   function wireMobileToggle() {
     const toggle = qs("#mobileToggle");
     if (!toggle) return;
