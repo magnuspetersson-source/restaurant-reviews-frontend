@@ -43,6 +43,19 @@
 html,body{ height:100%; }
 body{ margin:0; }
 
+/* === HARD OVERRIDE: ensure open panel is visible === */
+#reviewPanel.is-open {
+  left: auto !important;
+  right: 0 !important;
+  transform: translateX(0) !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+#reviewPanel {
+  max-width: min(520px, 100vw);
+}
+
 #app{
   /* Create a reliable stacking root */
   position: relative;

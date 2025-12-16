@@ -1,63 +1,61 @@
+// panel.js — SAFE renderer (no dependencies, never controls open/close)
 (function () {
-  const { qs, el } = window.RR_DOM;
-  const { dollars, stars, km } = window.RR_FMT;
-  const { sanitizeHtml } = window.RR_SANITIZE;
-
-  function openPanel() {
-    const panel = qs("#reviewPanel");
-    panel.classList.add("is-open");
-    panel.setAttribute("aria-hidden", "false");
+  function qs(sel) {
+    return document.querySelector(sel);
   }
 
-  function closePanel() {
-    const panel = qs("#reviewPanel");
-    panel.classList.remove("is-open");
-    panel.setAttribute("aria-hidden", "true");
+  function escapeText(s) {
+    return String(s ?? "");
   }
 
   function renderPanel(review) {
-    const title = qs("#panelTitle");
-    const meta = qs("#panelMeta");
-    const content = qs("#panelContent");
-    const gallery = qs("#panelGallery");
+    const titleEl = qs("#panelTitle");
+    const metaEl = qs("#panelMeta");
+    const contentEl = qs("#panelContent");
+    const galleryEl = qs("#panelGallery");
+
+    if (!titleEl || !metaEl || !contentEl) return;
 
     if (!review) {
-      title.textContent = "";
-      meta.innerHTML = "";
-      content.innerHTML = "";
-      gallery.innerHTML = "";
-      closePanel();
+      titleEl.textContent = "";
+      metaEl.textContent = "";
+      contentEl.innerHTML = "";
+      if (galleryEl) galleryEl.innerHTML = "";
       return;
     }
 
-    title.textContent = review.place_name || "";
-    meta.innerHTML = "";
+    // Title
+    titleEl.textContent = review.place_name || "";
 
-    const chips = [];
-    if (review.rating) chips.push(el("span", { class: "badge", text: stars(review.rating) }));
-    if (review.cost_level) chips.push(el("span", { class: "badge", text: dollars(review.cost_level) }));
-    if (review.value_rating) chips.push(el("span", { class: "badge", text: `Value ${review.value_rating}/5` }));
-    if (review.home_distance_km !== null && review.home_distance_km !== undefined) chips.push(el("span", { class: "badge", text: km(review.home_distance_km) }));
-    if (review.restaurant_type) chips.push(el("span", { class: "badge", text: review.restaurant_type }));
-    chips.forEach(c => meta.appendChild(c));
+    // Meta (keep it simple + safe)
+    const parts = [];
+    if (review.rating != null) parts.push(`★ ${review.rating}`);
+    if (review.review_date) parts.push(escapeText(review.review_date));
+    if (review.restaurant_type) parts.push(escapeText(review.restaurant_type));
+    if (review.cost_level) parts.push("$".repeat(Number(review.cost_level) || 0));
+    if (review._distance_km != null) parts.push(`${Number(review._distance_km).toFixed(1)} km`);
 
-    gallery.innerHTML = "";
-    (review.images || []).forEach((img, idx) => {
-      const item = el("div", { class: "gallery__item", role: "button", tabindex: "0" }, [
-        el("img", { src: img.url, alt: img.caption || "" })
-      ]);
-      item.addEventListener("click", () => window.RR_STATE.actions.openSlideshow(review.images, idx));
-      item.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") window.RR_STATE.actions.openSlideshow(review.images, idx);
+    metaEl.textContent = parts.filter(Boolean).join(" · ");
+
+    // Content (Quill HTML usually lives in review.comment)
+    const html = review.comment || "";
+    contentEl.innerHTML = html ? String(html) : "<p><em>Ingen recensionstext.</em></p>";
+
+    // Gallery (optional)
+    if (galleryEl) {
+      galleryEl.innerHTML = "";
+      const imgs = Array.isArray(review.images) ? review.images : [];
+      imgs.forEach((img) => {
+        const d = document.createElement("div");
+        d.className = "gallery__item";
+        const im = document.createElement("img");
+        im.src = img.url;
+        im.alt = img.caption || "";
+        d.appendChild(im);
+        galleryEl.appendChild(d);
       });
-      gallery.appendChild(item);
-    });
-
-    const safeHtml = sanitizeHtml(review.comment_html || "");
-    content.innerHTML = safeHtml || "<p><em>Ingen recensionstext.</em></p>";
-
-    openPanel();
+    }
   }
 
-  window.RR_UI_PANEL = { renderPanel, openPanel, closePanel };
+  window.RR_UI_PANEL = { renderPanel };
 })();
