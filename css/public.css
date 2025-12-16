@@ -15,9 +15,7 @@
 }
 
 #app #panelCloseBtn {
-  pointer-events: auto !important;
-  position: relative;
-  z-index: 10001;
+  pointer-events: none;
 }
 
 #app .panel {
