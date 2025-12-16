@@ -530,30 +530,26 @@ function ensureAppMarkup() {
       window.RR_MARKERS.highlightSelected?.(s.ui.selectedReviewId);
     }
 
-    // Panel content
+    // Panel content & visibility — SINGLE SOURCE OF TRUTH
     const review = getReviewByIdSafe(s, s.ui.selectedReviewId);
     const panelEl = qs("#reviewPanel");
-    if (panelEl) {
-      const open = !!review;
-      panelEl.setAttribute("aria-hidden", open ? "false" : "true");
-      panelEl.style.setProperty("display", open ? "block" : "none", "important");
-      panelEl.classList.toggle("is-open", open);
+    
+    if (!panelEl) return;
+    
+    // Close
+    if (!review) {
+      panelEl.setAttribute("aria-hidden", "true");
+      panelEl.style.setProperty("display", "none", "important");
+      panelEl.classList.remove("is-open");
+      return;
     }
     
-    if (!review) {
-      if (panelEl) {
-        panelEl.setAttribute("aria-hidden", "true");
-        panelEl.style.display = "none";
-        panelEl.classList.remove("is-open");
-      }
-    } else {
-      window.RR_UI_PANEL?.renderPanel?.(review);
-      if (panelEl) {
-        panelEl.setAttribute("aria-hidden", "false");
-        panelEl.style.display = "block";
-        panelEl.classList.add("is-open");
-      }
-    }    
+    // Open
+    window.RR_UI_PANEL?.renderPanel?.(review);
+    panelEl.setAttribute("aria-hidden", "false");
+    panelEl.style.setProperty("display", "block", "important");
+    panelEl.classList.add("is-open");
+    
     // Slideshow images for fallback
     const gallery = qs("#panelGallery");
     if (gallery) {

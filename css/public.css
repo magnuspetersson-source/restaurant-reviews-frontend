@@ -1,116 +1,140 @@
+/* =========================================================
+   Restaurant Reviews (Public) — Squarespace-first CSS
+   - Minimal brand styling, maximal theme inheritance
+   - Fix for Squarespace header click-through (z-index + scrim)
+   ========================================================= */
+
+/* ---------- Tokens (app scoped) ---------- */
 :root{
-  --bg:#0f1115;
-  --panel:#141823;
-  --card:#171c29;
-  --muted:#aab3c2;
-  --text:#e9eef7;
-  --line:rgba(255,255,255,.08);
-  --accent:#7aa7ff;
-  --bad:#ff6b6b;
-  --good:#63d39b;
-  --shadow: 0 16px 48px rgba(0,0,0,.45);
-  --radius: 16px;
-  --radius2: 22px;
-  --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-}
+  /* Layout */
+  --rr-gap: 14px;
+  --rr-radius: 16px;
+  --rr-radius2: 22px;
+  --rr-shadow: 0 16px 48px rgba(0,0,0,.25);
 
-/* Lift RR above Squarespace header and make panel clickable */
-#app {
-  position: relative;
-  z-index: 20000;
-}
+  /* Surfaces (light by default; will still feel Squarespace-native) */
+  --rr-surface: rgba(255,255,255,.92);
+  --rr-surface2: rgba(255,255,255,.80);
+  --rr-border: rgba(0,0,0,.14);
+  --rr-border-strong: rgba(0,0,0,.22);
 
-/* Panel must be above Squarespace header */
-#app #reviewPanel,
-#app .panel {
-  position: fixed;
-  top: 0;
-  right: 0;
-  left: auto;
-  height: 100%;
-  pointer-events: auto;
-  z-index: 20050;
-}
+  /* Text */
+  --rr-muted: rgba(0,0,0,.62);
 
-/* Close button must always be clickable */
-#app #panelCloseBtn {
-  pointer-events: auto !important;
-  position: relative;
-  z-index: 20051;
+  /* Accents */
+  --rr-focus: rgba(0,0,0,.18);
+
+  /* Map */
+  --rr-map-min-h: 420px;
+  --rr-map-min-h-mobile: 360px;
+
+  /* Panel */
+  --rr-panel-w: 520px;
+
+  /* Stacking (must beat Squarespace header portals) */
+  --rr-z-app: 2147483000;
+  --rr-z-scrim: 2147483100;
+  --rr-z-panel: 2147483200;
+  --rr-z-panel-ui: 2147483300;
+  --rr-z-modal: 2147483400;
 }
 
 *{ box-sizing:border-box; }
 html,body{ height:100%; }
-body{
-  margin:0;
-  font-family:var(--font);
-  background:var(--bg);
-  color:var(--text);
+body{ margin:0; }
+
+#app{
+  /* Create a reliable stacking root */
+  position: relative;
+  z-index: var(--rr-z-app);
 }
 
-a{ color:var(--accent); text-decoration:none; }
-a:hover{ text-decoration:underline; }
+/* Inherit Squarespace typography/colors by default */
+#app, #app *{
+  font-family: inherit;
+  color: inherit;
+}
 
-.app{ min-height:100%; display:flex; flex-direction:column; }
+/* Links */
+#app a{ text-decoration:none; }
+#app a:hover{ text-decoration:underline; }
 
-.topbar{
-  position:sticky; top:0; z-index:20;
-  background: linear-gradient(180deg, rgba(15,17,21,.98), rgba(15,17,21,.75));
-  backdrop-filter: blur(10px);
-  border-bottom:1px solid var(--line);
-  padding:14px 16px;
+/* ---------- App shell ---------- */
+#app .app{ min-height:100%; display:flex; flex-direction:column; }
+
+#app .topbar{
+  position: sticky;
+  top: 0;
+  z-index: 10; /* inside app; panel/modal use much higher */
+  background: transparent;
+  padding: 14px 16px;
   display:flex;
-  gap:14px;
+  gap: 14px;
   align-items:flex-start;
   justify-content:space-between;
 }
 
-.brand__title{ font-weight:700; letter-spacing:.2px; }
-.brand__sub{ color:var(--muted); font-size:13px; margin-top:2px; }
+#app .brand__title{ font-weight: 600; letter-spacing:.2px; }
+#app .brand__sub{ opacity:.75; font-size:13px; margin-top:2px; }
 
-.controls{ display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
-.control{
-  background:rgba(255,255,255,.06);
-  border:1px solid var(--line);
-  color:var(--text);
+#app .controls{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+
+#app .control{
+  background: var(--rr-surface);
+  border:1px solid var(--rr-border);
   border-radius:12px;
   padding:10px 12px;
   outline:none;
 }
-.control:focus{ border-color: rgba(122,167,255,.55); }
 
-.mobileToggle{ display:none; margin-top:10px; justify-content:flex-end; gap:8px; }
-.toggleBtn{
-  background:rgba(255,255,255,.06);
-  border:1px solid var(--line);
-  color:var(--text);
+#app .control:focus{
+  border-color: var(--rr-border-strong);
+  box-shadow: 0 0 0 4px rgba(0,0,0,.06);
+}
+
+/* Distance toggle buttons can reuse .control look */
+#app .distanceToggle{ display:flex; gap:8px; align-items:center; }
+#app .rr-toggle{ cursor:pointer; }
+#app .rr-toggle.is-active{
+  border-color: var(--rr-border-strong);
+  box-shadow: 0 0 0 4px rgba(0,0,0,.06);
+}
+
+/* Mobile toggle */
+#app .mobileToggle{ display:none; margin-top:10px; justify-content:flex-end; gap:8px; }
+#app .toggleBtn{
+  background: var(--rr-surface);
+  border:1px solid var(--rr-border);
   border-radius:999px;
   padding:8px 12px;
   cursor:pointer;
 }
-.toggleBtn.is-active{
-  border-color: rgba(122,167,255,.65);
-  box-shadow: 0 0 0 4px rgba(122,167,255,.10);
+#app .toggleBtn.is-active{
+  border-color: var(--rr-border-strong);
+  box-shadow: 0 0 0 4px rgba(0,0,0,.06);
 }
 
-.main{
+/* Main grid */
+#app .main{
   flex:1;
   display:grid;
   grid-template-columns: 420px 1fr;
   min-height:0;
 }
 
-.col{
-  min-height:0;
-  position:relative;
+#app .col{ min-height:0; position:relative; }
+#app .col--list{
+  border-right:1px solid var(--rr-border);
+  background: transparent;
 }
 
-.col--list{
-  border-right:1px solid var(--line);
-  background:rgba(255,255,255,.02);
-}
-
-.list{
+/* List */
+#app .list{
   padding:14px;
   display:flex;
   flex-direction:column;
@@ -119,118 +143,149 @@ a:hover{ text-decoration:underline; }
   height:100%;
 }
 
-.card{
-  background:var(--card);
-  border:1px solid var(--line);
-  border-radius: var(--radius);
+#app .status{
+  margin:14px;
   padding:12px;
-  display:flex;
-  gap:12px;
+  border:1px solid var(--rr-border);
+  border-radius: var(--rr-radius);
+  background: var(--rr-surface2);
+  opacity:.85;
+}
+
+/* Cards */
+#app .card{
+  background: var(--rr-surface);
+  border:1px solid var(--rr-border);
+  border-radius: var(--rr-radius);
+  padding:12px;
   cursor:pointer;
-  transition: transform .12s ease, border-color .12s ease;
+  transition: transform .12s ease, border-color .12s ease, box-shadow .12s ease;
 }
-.card:hover{ transform: translateY(-1px); border-color: rgba(255,255,255,.14); }
-.card.is-selected{
-  border-color: rgba(122,167,255,.55);
-  box-shadow: 0 0 0 4px rgba(122,167,255,.10);
+#app .card:hover{ transform: translateY(-1px); border-color: var(--rr-border-strong); }
+#app .card.is-selected{
+  border-color: var(--rr-border-strong);
+  box-shadow: 0 0 0 4px rgba(0,0,0,.06);
 }
 
-.thumb{
-  width:62px; height:62px;
-  border-radius:14px;
-  background:rgba(255,255,255,.06);
-  overflow:hidden;
-  flex:0 0 auto;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  border:1px solid var(--line);
+#app .card__title{
+  font-weight: 600;
+  line-height:1.25;
+  margin-bottom:6px;
+  font-size: 16px;
 }
-.thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
 
-.card__main{ min-width:0; flex:1; }
-.card__title{ font-weight:700; line-height:1.2; margin-bottom:6px; }
-.card__meta{
-  color:var(--muted);
-  font-size:13px;
+#app .card__row1{
   display:flex;
-  flex-wrap:wrap;
   gap:10px;
+  align-items:baseline;
+  opacity:.9;
+  font-size:13px;
 }
-.badge{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  padding:5px 8px;
-  border-radius:999px;
-  border:1px solid var(--line);
-  background: rgba(255,255,255,.04);
+#app .card__stars{ letter-spacing:.8px; }
+#app .card__date{ opacity:.75; }
+
+#app .card__row2{
+  margin-top:6px;
+  opacity:.75;
+  font-size:13px;
 }
 
-.map{ position:absolute; inset:0; }
-.mapHint{
+/* Map */
+#app #colMap,
+#app #map{
+  min-height: var(--rr-map-min-h);
+}
+#app .map{ position:absolute; inset:0; }
+#app .mapHint{
   position:absolute; left:12px; bottom:12px; z-index:2;
   background: rgba(0,0,0,.55);
   border:1px solid rgba(255,255,255,.14);
   border-radius: 12px;
   padding:10px 12px;
   font-size:13px;
-  color: var(--muted);
+  color: rgba(255,255,255,.82);
 }
 
-.status{
-  margin:14px;
-  padding:12px;
-  border:1px solid var(--line);
-  border-radius: var(--radius);
-  background: rgba(255,255,255,.04);
-  color: var(--muted);
-}
+/* =========================================================
+   Panel: RIGHT drawer, always above Squarespace header
+   ========================================================= */
+#app #reviewPanel,
+#app .panel{
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: auto;
+  width: min(var(--rr-panel-w), 100%);
+  height: 100%;
+  background: var(--rr-surface);
+  border-left: 1px solid var(--rr-border);
+  box-shadow: var(--rr-shadow);
+  z-index: var(--rr-z-panel);
+  pointer-events: auto;
 
-.panel{
-  position:fixed;
-  top:0; right:0;
-  width: 520px;
-  height:100%;
-  background: var(--panel);
-  border-left:1px solid var(--line);
-  box-shadow: var(--shadow);
   transform: translateX(105%);
   transition: transform .18s ease;
-  z-index:20050;
   display:flex;
   flex-direction:column;
 }
-.panel.is-open{ transform: translateX(0); }
 
-.panel__header{
-  padding:14px 14px 10px 14px;
-  border-bottom:1px solid var(--line);
+/* Open state (your app.js should toggle .is-open) */
+#app .panel.is-open{ transform: translateX(0); }
+
+/* Header should stay clickable and on top */
+#app .panel__header{
+  position: sticky;
+  top: 0;
+  z-index: var(--rr-z-panel-ui);
+  background: inherit;
+  padding: 14px 14px 10px 14px;
+  border-bottom: 1px solid var(--rr-border);
+  pointer-events: auto;
 }
-.panel__title{ font-weight:800; font-size:18px; margin-top:6px; }
-.panel__meta{ color:var(--muted); font-size:13px; margin-top:6px; display:flex; gap:10px; flex-wrap:wrap; }
-.panel__body{ padding:14px; overflow:auto; height:100%; }
 
-.iconBtn{
-  background: rgba(255,255,255,.06);
-  color: var(--text);
-  border:1px solid var(--line);
+#app .panel__title{ font-weight:700; font-size:18px; margin-top:6px; }
+#app .panel__meta{ opacity:.75; font-size:13px; margin-top:6px; display:flex; gap:10px; flex-wrap:wrap; }
+#app .panel__body{ padding:14px; overflow:auto; height:100%; }
+
+/* Close button must be clickable above everything */
+#app #panelCloseBtn{
+  pointer-events: auto !important;
+  position: relative;
+  z-index: var(--rr-z-panel-ui);
+}
+
+#app .iconBtn{
+  background: var(--rr-surface2);
+  border: 1px solid var(--rr-border);
   border-radius: 12px;
-  padding:8px 10px;
-  cursor:pointer;
+  padding: 8px 10px;
+  cursor: pointer;
 }
-.iconBtn:hover{ border-color: rgba(255,255,255,.18); }
+#app .iconBtn:hover{ border-color: var(--rr-border-strong); }
 
-.gallery{
+/* --- Scrim to block clicks to Squarespace header underneath --- */
+#app .panel.is-open::before{
+  content:"";
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.18);
+  z-index: var(--rr-z-scrim);
+  pointer-events: auto;
+}
+
+/* =========================================================
+   Gallery + content + comments
+   ========================================================= */
+#app .gallery{
   display:grid;
   grid-template-columns: repeat(3, 1fr);
   gap:10px;
   margin-bottom:14px;
 }
-.gallery__item{
+#app .gallery__item{
   border-radius: 16px;
-  border:1px solid var(--line);
-  background: rgba(255,255,255,.05);
+  border: 1px solid var(--rr-border);
+  background: var(--rr-surface2);
   overflow:hidden;
   cursor:pointer;
   aspect-ratio: 1 / 1;
@@ -238,228 +293,162 @@ a:hover{ text-decoration:underline; }
   align-items:center;
   justify-content:center;
 }
-.gallery__item img{ width:100%; height:100%; object-fit:cover; display:block; }
+#app .gallery__item img{ width:100%; height:100%; object-fit:cover; display:block; }
 
-.content{
-  border:1px solid var(--line);
-  background: rgba(255,255,255,.03);
-  border-radius: var(--radius);
+#app .content{
+  border:1px solid var(--rr-border);
+  background: var(--rr-surface2);
+  border-radius: var(--rr-radius);
   padding:12px;
   margin-bottom:16px;
 }
-.content :first-child{ margin-top:0; }
-.content p{ line-height:1.55; }
-.content h1,.content h2,.content h3{ margin:.6em 0 .35em; }
-.content ul,.content ol{ padding-left: 1.2em; }
-.content blockquote{
+#app .content :first-child{ margin-top:0; }
+#app .content p{ line-height:1.6; }
+#app .content h1,#app .content h2,#app .content h3{ margin:.6em 0 .35em; }
+#app .content ul,#app .content ol{ padding-left: 1.2em; }
+#app .content blockquote{
   margin: 10px 0;
   padding: 8px 10px;
-  border-left: 3px solid rgba(122,167,255,.55);
-  color: var(--muted);
-  background: rgba(255,255,255,.03);
+  border-left: 3px solid rgba(0,0,0,.25);
+  opacity:.85;
+  background: rgba(0,0,0,.03);
   border-radius: 12px;
 }
 
-.comments{ margin-top:14px; }
-.comments__header{ display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
-.comments__title{ font-weight:800; }
-.comments__disclaimer{ font-size:12px; color:var(--muted); }
+/* Comments */
+#app .comments{ margin-top:14px; }
+#app .comments__header{ display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
+#app .comments__title{ font-weight:700; }
+#app .comments__disclaimer{ font-size:12px; opacity:.75; }
 
-.comments__list{ display:flex; flex-direction:column; gap:10px; margin-bottom:14px; }
-.comment{
-  border:1px solid var(--line);
-  background: rgba(255,255,255,.03);
-  border-radius: var(--radius);
+#app .comments__list{ display:flex; flex-direction:column; gap:10px; margin-bottom:14px; }
+#app .comment{
+  border:1px solid var(--rr-border);
+  background: var(--rr-surface2);
+  border-radius: var(--rr-radius);
   padding:10px;
 }
-.comment__top{ display:flex; gap:10px; align-items:baseline; justify-content:space-between; }
-.comment__name{ font-weight:700; }
-.comment__time{ color:var(--muted); font-size:12px; }
-.comment__body{ margin-top:8px; color: var(--text); white-space:pre-wrap; line-height:1.45; }
+#app .comment__top{ display:flex; gap:10px; align-items:baseline; justify-content:space-between; }
+#app .comment__name{ font-weight:600; }
+#app .comment__time{ opacity:.7; font-size:12px; }
+#app .comment__body{ margin-top:8px; white-space:pre-wrap; line-height:1.45; }
 
-.commentForm{
-  border:1px solid var(--line);
-  background: rgba(255,255,255,.03);
-  border-radius: var(--radius);
+#app .commentForm{
+  border:1px solid var(--rr-border);
+  background: var(--rr-surface2);
+  border-radius: var(--rr-radius);
   padding:12px;
 }
-.row{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
-.field{ display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
-.field span{ font-size:12px; color:var(--muted); }
-.field input,.field textarea{
+#app .row{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+#app .field{ display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
+#app .field span{ font-size:12px; opacity:.75; }
+#app .field input, #app .field textarea{
   width:100%;
-  background: rgba(255,255,255,.06);
-  border:1px solid var(--line);
-  color:var(--text);
+  background: rgba(255,255,255,.98);
+  border:1px solid var(--rr-border);
   border-radius: 12px;
   padding:10px 12px;
   outline:none;
 }
-.field textarea{ min-height: 96px; resize: vertical; }
-
-.btn{
-  background: rgba(122,167,255,.20);
-  border:1px solid rgba(122,167,255,.45);
-  color: var(--text);
+#app .field textarea{ min-height: 96px; resize: vertical; }
+#app .btn{
+  background: rgba(0,0,0,.06);
+  border: 1px solid var(--rr-border);
   border-radius: 12px;
   padding:10px 12px;
   cursor:pointer;
-  font-weight:700;
+  font-weight:600;
 }
-.btn:hover{ border-color: rgba(122,167,255,.65); }
-.btn:disabled{ opacity:.6; cursor:not-allowed; }
+#app .btn:hover{ border-color: var(--rr-border-strong); }
+#app .btn:disabled{ opacity:.6; cursor:not-allowed; }
+#app .commentForm__actions{ display:flex; align-items:center; gap:10px; }
+#app .formNote{ opacity:.75; font-size:12px; }
 
-.commentForm__actions{ display:flex; align-items:center; gap:10px; }
-.formNote{ color:var(--muted); font-size:12px; }
-
-.modal{
-  position:fixed; inset:0;
-  display:none;
-  z-index:50;
+/* =========================================================
+   Modal slideshow — always above everything
+   ========================================================= */
+#app .modal{
+  position: fixed;
+  inset: 0;
+  display: none;
+  z-index: var(--rr-z-modal);
 }
-.modal.is-open{ display:block; }
-.modal__overlay{
-  position:absolute; inset:0;
+#app .modal.is-open{ display:block; }
+
+#app .modal__overlay{
+  position:absolute;
+  inset:0;
   background: rgba(0,0,0,.65);
   backdrop-filter: blur(8px);
 }
-.modal__dialog{
+
+#app .modal__dialog{
   position:absolute;
-  left:50%; top:50%;
+  left:50%;
+  top:50%;
   transform: translate(-50%,-50%);
   width:min(980px, calc(100% - 24px));
-  background: rgba(20,24,35,.98);
-  border:1px solid rgba(255,255,255,.12);
-  border-radius: var(--radius2);
-  box-shadow: var(--shadow);
+  background: rgba(255,255,255,.96);
+  border:1px solid var(--rr-border);
+  border-radius: var(--rr-radius2);
+  box-shadow: var(--rr-shadow);
   padding:12px;
 }
-.modal__close{ position:absolute; right:12px; top:12px; z-index:2; }
 
-.modal__media{
+#app .modal__close{
+  position:absolute;
+  right:12px;
+  top:12px;
+  z-index: 2;
+}
+
+#app .modal__media{
   display:grid;
   grid-template-columns: 46px 1fr 46px;
   gap:10px;
   align-items:center;
   padding:10px;
 }
-.modal__media img{
+#app .modal__media img{
   width:100%;
   height: min(72vh, 720px);
   object-fit: contain;
   border-radius: 18px;
-  background: rgba(255,255,255,.04);
-  border:1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.03);
+  border:1px solid var(--rr-border);
 }
-.navBtn{
-  background: rgba(255,255,255,.06);
-  border:1px solid rgba(255,255,255,.12);
-  color: var(--text);
+
+#app .navBtn{
+  background: var(--rr-surface2);
+  border: 1px solid var(--rr-border);
   border-radius: 14px;
   height: 46px;
   cursor:pointer;
   font-size:24px;
 }
-.navBtn:hover{ border-color: rgba(255,255,255,.20); }
+#app .navBtn:hover{ border-color: var(--rr-border-strong); }
 
-.modal__caption{
-  padding: 0 12px 8px 12px;
-  color: var(--muted);
-  font-size: 13px;
-}
-.modal__counter{
-  padding: 0 12px 10px 12px;
-  color: var(--muted);
-  font-size: 12px;
-}
+#app .modal__caption{ padding: 0 12px 8px 12px; opacity:.75; font-size: 13px; }
+#app .modal__counter{ padding: 0 12px 10px 12px; opacity:.7; font-size: 12px; }
 
-/* Responsive */
+/* InfoWindow (from markers.js) */
+#app .rr-iw{ font-size: 13px; line-height: 1.35; }
+#app .rr-iw__title{ font-weight: 700; margin-bottom: 4px; }
+#app .rr-iw__meta{ opacity:.85; display:flex; gap:8px; align-items:baseline; margin-bottom: 4px; }
+#app .rr-iw__sub{ opacity:.75; margin-bottom: 6px; }
+#app .rr-iw__link a{ font-weight: 600; }
+
+/* =========================================================
+   Responsive
+   ========================================================= */
 @media (max-width: 980px){
-  .main{ grid-template-columns: 1fr; }
-  .col--list{ border-right:none; }
-  .col--map{ display:none; height: calc(100vh - 84px); }
-  .mobileToggle{ display:flex; }
-  .panel{ width: min(520px, 100%); }
-  .row{ grid-template-columns: 1fr; }
+  #app .main{ grid-template-columns: 1fr; }
+  #app .col--list{ border-right:none; }
+  #app .col--map{ display:none; height: calc(100vh - 84px); }
+  #app .mobileToggle{ display:flex; }
+  #app .row{ grid-template-columns: 1fr; }
+
+  #app #colMap, #app #map{ min-height: var(--rr-map-min-h-mobile); }
 }
 
-/* ================================
-   Squarespace theme inheritance
-   ================================ */
-
-#app, #app * {
-  font-family: inherit !important;
-  color: inherit !important;
-}
-
-/* Topbar: transparent, theme-owned */
-#app .topbar {
-  background: transparent !important;
-  border-bottom: none !important;
-  box-shadow: none !important;
-  backdrop-filter: none !important;
-}
-
-#app .brand__title,
-#app .brand__sub {
-  color: inherit !important;
-  text-shadow: none !important;
-}
-
-/* Controls: readable but light */
-#app .control {
-  background: rgba(255,255,255,.85) !important;
-  border: 1px solid rgba(0,0,0,.16) !important;
-  color: inherit !important;
-}
-
-@media (max-width: 980px) {
-  #app .control {
-    background: rgba(255,255,255,.92) !important;
-  }
-}
-
-/* Review cards */
-#app .card {
-  background: rgba(255,255,255,.92) !important;
-  border: 1px solid rgba(0,0,0,.14) !important;
-  border-radius: 14px;
-  box-shadow: 0 1px 8px rgba(0,0,0,.06);
-}
-
-#app .card:hover {
-  border-color: rgba(0,0,0,.22) !important;
-}
-
-#app .card.is-selected {
-  outline: 3px solid rgba(0,0,0,.10);
-}
-
-#app .card__title {
-  font-size: 18px;
-  font-weight: 600;
-  line-height: 1.25;
-}
-
-/* Panel */
-#app #reviewPanel {
-  background: rgba(255,255,255,.92) !important;
-  border: 1px solid rgba(0,0,0,.14) !important;
-}
-
-/* Map height safety */
-#app #colMap,
-#app #map {
-  min-height: 420px;
-}
-
-@media (max-width: 980px) {
-  #app #colMap,
-  #app #map {
-    min-height: 360px;
-  }
-}
-
-#reviewPanel.is-hidden { display: none !important; }
-#slideshowModal { display: none; }
-#slideshowModal.is-open { display: block; }
+/* Safety: never hide modal by ID rules outside #app */
