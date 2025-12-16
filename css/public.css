@@ -452,3 +452,69 @@ header.Header,
 
   #app #colMap, #app #map{ min-height: var(--rr-map-min-h-mobile); }
 }
+
+/* =========================================================
+   Panel layout A: 3 columns (List | Map | Panel)
+   - Panel lives inside the page layout (no overlap with Squarespace header)
+   ========================================================= */
+
+/* Base layout */
+#app .main{
+  display: grid;
+  grid-template-columns: 420px 1fr; /* list | map */
+  min-height: 0;
+}
+
+/* When panel is open, add third column */
+#app .main.has-panel{
+  grid-template-columns: 420px 1fr min(520px, 100%);
+}
+
+/* Panel becomes a normal column (NOT fixed, no transform) */
+#app #reviewPanel{
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
+  left: auto !important;
+
+  width: 100% !important;
+  height: 100% !important;
+
+  transform: none !important;
+  transition: none !important;
+
+  z-index: 1 !important;
+}
+
+/* Keep header visible while scrolling panel */
+#app #reviewPanel .panel__header{
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: inherit;
+}
+
+/* Make the panel body scroll within the column */
+#app #reviewPanel .panel__body{
+  overflow: auto;
+  height: 100%;
+}
+
+/* Mobile: panel replaces list/map inside the same column */
+@media (max-width: 980px){
+  #app .main,
+  #app .main.has-panel{
+    grid-template-columns: 1fr;
+  }
+
+  /* When panel open on mobile, hide list/map columns (panel becomes the view) */
+  #app .main.has-panel #colList,
+  #app .main.has-panel #colMap{
+    display: none !important;
+  }
+
+  #app .main.has-panel #reviewPanel{
+    display: block !important;
+    border-left: none;
+  }
+}

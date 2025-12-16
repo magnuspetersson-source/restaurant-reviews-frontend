@@ -1,16 +1,16 @@
-// app.js (public page) — stable panel + distance toggle + markers/list integration
-// Requires: RR_DOM, RR_STATE, RR_API, RR_MAP, RR_MARKERS, RR_LIST (or RR_UI_LIST), RR_UI_PANEL, RR_UI_COMMENTS (optional)
+// app.js (public page) — Layout A (List | Map | Panel) with in-page panel
+// Requires: RR_DOM, RR_STATE, RR_API, RR_MAP, RR_MARKERS, RR_LIST (or RR_UI_LIST), RR_UI_PANEL
+// Optional: RR_UI_COMMENTS, RR_UI_MODAL
 
 console.log(
-  "%cRR app.js LOADED — build 2025-01-XX 09:42",
+  "%cRR app.js LOADED — build 2025-12-16 layout-A",
   "background:#7aa7ff;color:#000;padding:4px;font-weight:bold"
 );
+window.__RR_APP_VERSION__ = "app.js @ 2025-12-16 layout-A 3-col panel";
 
 function ensureAppMarkup() {
   const root = document.getElementById("app");
   if (!root) throw new Error("Missing #app root");
-
-  // IMPORTANT: only check inside #app, not the whole document
   if (root.querySelector("#sortSelect")) return;
 
   root.innerHTML = `
@@ -67,7 +67,7 @@ function ensureAppMarkup() {
         </div>
       </header>
 
-      <main class="main">
+      <main class="main" id="mainGrid">
         <section class="col col--list" id="colList" aria-label="Lista">
           <div class="status" id="statusArea" hidden></div>
           <div class="list" id="reviewList" aria-label="Recensioner"></div>
@@ -143,6 +143,12 @@ function ensureAppMarkup() {
   `;
 }
 
+// Markers: rebuild only when list changes
+let __RR_MARKERS_KEY = "";
+function __rrMarkersKey(reviews) {
+  return (reviews || []).map(r => `${r.id}:${r.restaurant_lat}:${r.restaurant_lng}`).join("|");
+}
+
 (function () {
   if (!window.RR_DOM || !window.RR_STATE) {
     console.error("[RR] Missing RR_DOM or RR_STATE");
@@ -212,10 +218,10 @@ function ensureAppMarkup() {
     if (!Number.isFinite(num)) return null;
 
     const byId = s?.data?.byId;
-    if (byId && byId[num]) return byId[num];
+    if (byId && (byId[num] || byId[String(num)])) return byId[num] || byId[String(num)];
 
     const reviews = Array.isArray(s?.data?.reviews) ? s.data.reviews : [];
-    return reviews.find((r) => Number(r.id) === num) || null;
+    return reviews.find((r) => String(r.id) === String(num)) || null;
   }
 
   function getListForRender(s) {
@@ -256,9 +262,9 @@ function ensureAppMarkup() {
 
   async function selectReview(id, source) {
     actions.selectReview(id, source);
-    // Load comments whenever we open a review (optional module)
     if (id != null && window.RR_UI_COMMENTS?.loadComments) {
-      try { await window.RR_UI_COMMENTS.loadComments(id); } catch (e) { console.warn("[RR] loadComments failed", e); }
+      try { await window.RR_UI_COMMENTS.loadComments(id); }
+      catch (e) { console.warn("[RR] loadComments failed", e); }
     }
   }
 
@@ -402,34 +408,35 @@ function ensureAppMarkup() {
 
     homeBtn?.addEventListener("click", () => {
       setDistanceMode("home");
-      render(state);
+      render(window.RR_STATE.state);
     });
 
     meBtn?.addEventListener("click", async () => {
       setDistanceMode("me");
       try {
         await getUserPosOnce();
-        render(state);
+        render(window.RR_STATE.state);
       } catch (err) {
         console.warn("[RR] Geolocation failed:", err);
         setDistanceMode("home");
-        render(state);
+        render(window.RR_STATE.state);
       }
     });
   }
 
+  // Close is delegated (capture) so it always works even if DOM moves
   function wirePanelClose() {
-    const btn = qs("#panelCloseBtn");
-    if (!btn) return;
-
-    // Capture + pointerdown = survives Squarespace header weirdness
-    btn.addEventListener("pointerdown", (e) => {
+    document.addEventListener("pointerdown", (e) => {
+      const btn = e.target.closest("#panelCloseBtn");
+      if (!btn) return;
       e.preventDefault();
       e.stopPropagation();
       selectReview(null, "ui");
     }, true);
 
-    btn.addEventListener("click", (e) => {
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest("#panelCloseBtn");
+      if (!btn) return;
       e.preventDefault();
       e.stopPropagation();
       selectReview(null, "ui");
@@ -439,7 +446,6 @@ function ensureAppMarkup() {
   function wireMobileToggle() {
     const toggle = qs("#mobileToggle");
     if (!toggle) return;
-
     toggle.addEventListener("click", (e) => {
       const btn = e.target.closest("button[data-mode]");
       if (!btn) return;
@@ -447,12 +453,14 @@ function ensureAppMarkup() {
     });
   }
 
-  function applyMobileMode(viewMode) {
+  function applyMobileMode(viewMode, hasPanel) {
     const isMobile = window.matchMedia("(max-width: 980px)").matches;
     const colList = qs("#colList");
     const colMap = qs("#colMap");
     const toggle = qs("#mobileToggle");
 
+    // When panel is open on mobile, CSS will hide list/map and show panel.
+    // We keep toggle state, but avoid fighting the CSS.
     if (!isMobile) {
       colMap.style.display = "";
       colList.style.display = "";
@@ -461,10 +469,12 @@ function ensureAppMarkup() {
     }
 
     toggle?.querySelectorAll("button").forEach((b) =>
-      b.classList.toggle("is-active", b.getAttribute("data-mode") === viewMode)
+      b.classList.toggle("is-active", b.getAttribute("data-mode") === (viewMode || "list"))
     );
 
-    if (viewMode === "map") {
+    if (hasPanel) return;
+
+    if ((viewMode || "list") === "map") {
       colMap.style.display = "block";
       colList.style.display = "none";
     } else {
@@ -484,7 +494,6 @@ function ensureAppMarkup() {
       actions.setReviews(reviews);
 
       try { window.RR_UI_LIST?.renderTypeOptions?.(reviews); } catch {}
-
       setHidden(statusArea, true);
     } catch (e) {
       const msg = e?.message || "Kunde inte hämta recensioner";
@@ -507,46 +516,43 @@ function ensureAppMarkup() {
       });
     }
 
-    // Markers
+    // Markers (rebuild only when list changes)
     if (window.RR_MAP?.getMap?.() && window.google && google.maps && window.RR_MARKERS?.renderMarkers) {
-      window.RR_MARKERS.renderMarkers(listWithDistance, null, (id) => selectReview(id, "map"));
+      const key = __rrMarkersKey(listWithDistance);
+      if (key !== __RR_MARKERS_KEY) {
+        __RR_MARKERS_KEY = key;
+        window.RR_MARKERS.renderMarkers(listWithDistance, null, (id) => selectReview(id, "map"));
+      }
       window.RR_MARKERS.highlightSelected?.(s.ui.selectedReviewId);
     }
 
-    // Panel: single source of truth (ROBUST)
+    // Review lookup
     const id = s?.ui?.selectedReviewId;
-    
-    // robust review lookup (handles string/number ids)
     const review =
       getReviewByIdSafe(s, id) ||
       (s?.data?.byId ? (s.data.byId[id] || s.data.byId[String(id)]) : null) ||
       (Array.isArray(s?.data?.reviews) ? s.data.reviews.find(r => String(r.id) === String(id)) : null) ||
       null;
-    
-    // IMPORTANT: use global lookup (avoids scoped qs issues)
+
+    const open = !!review;
+
+    // Panel visibility
     const panelEl = document.getElementById("reviewPanel");
-    
     if (panelEl) {
-      if (!review) {
-        panelEl.setAttribute("aria-hidden", "true");
-        panelEl.style.setProperty("display", "none", "important");
-        panelEl.classList.remove("is-open");
-      } else {
-        // Open panel FIRST (so it opens even if renderPanel throws)
-        panelEl.setAttribute("aria-hidden", "false");
-        panelEl.style.setProperty("display", "block", "important");
-        panelEl.classList.add("is-open");
-    
-        try {
-          window.RR_UI_PANEL?.renderPanel?.(review);
-        } catch (e) {
-          console.error("[RR] RR_UI_PANEL.renderPanel crashed:", e);
-        }
+      panelEl.setAttribute("aria-hidden", open ? "false" : "true");
+      panelEl.style.setProperty("display", open ? "block" : "none", "important");
+
+      // In-page layout A: toggle third column on main grid
+      const mainEl = document.getElementById("mainGrid") || document.querySelector("#app .main");
+      if (mainEl) mainEl.classList.toggle("has-panel", open);
+
+      // Render content AFTER visibility set (and never crash render loop)
+      if (open) {
+        try { window.RR_UI_PANEL?.renderPanel?.(review); }
+        catch (e) { console.error("[RR] RR_UI_PANEL.renderPanel crashed:", e); }
       }
-    } else {
-      console.warn("[RR] #reviewPanel not found (ensureAppMarkup ran?)");
     }
-    
+
     // Slideshow images for fallback
     const gallery = qs("#panelGallery");
     if (gallery) {
@@ -559,7 +565,7 @@ function ensureAppMarkup() {
     if (meta) meta.textContent = `${list.length} recensioner`;
 
     // Mobile
-    applyMobileMode(s.ui.viewMode || "list");
+    applyMobileMode(s.ui.viewMode || "list", open);
   }
 
   // ---------------- Init ----------------
@@ -572,7 +578,6 @@ function ensureAppMarkup() {
     wireCommentForm();
     wireSlideshowFallback();
 
-    // Modal module (optional)
     window.RR_UI_MODAL?.wireModal?.();
 
     subscribe(render);
@@ -591,12 +596,9 @@ function ensureAppMarkup() {
 
     await loadReviewsOnce();
 
-    // initial selection from URL
     const initialId = window.RR_ROUTER?.getSelectedId?.();
-    const initialReview = getReviewByIdSafe(state, initialId);
-    if (initialReview) {
-      await selectReview(initialReview.id, "router");
-    }
+    const initialReview = getReviewByIdSafe(window.RR_STATE.state, initialId);
+    if (initialReview) await selectReview(initialReview.id, "router");
 
     // Close on Escape
     window.addEventListener("keydown", (e) => {
@@ -605,10 +607,9 @@ function ensureAppMarkup() {
       if (__SS.open) ssClose();
     });
 
-    render(state);
+    render(window.RR_STATE.state);
   }
 
-  // Squarespace sometimes loads scripts after DOMContentLoaded
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);
   } else {
