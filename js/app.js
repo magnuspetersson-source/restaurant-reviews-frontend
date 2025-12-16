@@ -415,15 +415,9 @@ function ensureAppMarkup() {
   }
 
   function wirePanelClose() {
-    const panel = qs("#reviewPanel");
-    if (!panel) return;
-  
-    panel.addEventListener("click", (e) => {
-      // Klick i header → stäng
-      if (e.target.closest(".panel__header")) {
-        e.preventDefault();
-        actions.selectReview(null, "ui");
-      }
+    qs("#panelCloseBtn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      actions.selectReview(null, "ui");
     });
   }
     
@@ -494,6 +488,8 @@ function ensureAppMarkup() {
   function render(s) {
     const list = getListForRender(s);
 
+
+
     // Distance: inject _distance_km based on mode
     const listWithDistance = (list || []).map((r) => {
       let km = null;
@@ -539,19 +535,19 @@ function ensureAppMarkup() {
     const panelEl = qs("#reviewPanel");
     
     if (!review) {
-      // HARD CLOSE – renderPanel får ALDRIG null
       if (panelEl) {
         panelEl.setAttribute("aria-hidden", "true");
         panelEl.style.display = "none";
+        panelEl.classList.remove("is-open");
       }
     } else {
       window.RR_UI_PANEL?.renderPanel?.(review);
       if (panelEl) {
         panelEl.setAttribute("aria-hidden", "false");
         panelEl.style.display = "block";
+        panelEl.classList.add("is-open");
       }
-    }
-    
+    }    
     // Slideshow images for fallback
     const gallery = qs("#panelGallery");
     if (gallery) {
