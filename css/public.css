@@ -1,77 +1,57 @@
 /* =========================================================
-   Restaurant Reviews (Public) — Squarespace-first CSS (CLEAN)
-   Fix: Squarespace header overlay steals clicks (z-index)
+   Restaurant Reviews (Public) — Layout A (List | Map | Panel)
+   Squarespace-first: inherit typography/colors, minimal tokens.
+   Panel is IN-PAGE (3rd column), no overlay.
    ========================================================= */
 
-/* ---------- Tokens (scoped) ---------- */
+/* ---------- Tokens ---------- */
 :root{
   --rr-gap: 14px;
   --rr-radius: 16px;
   --rr-radius2: 22px;
-  --rr-shadow: 0 16px 48px rgba(0,0,0,.25);
 
   --rr-surface: rgba(255,255,255,.92);
   --rr-surface2: rgba(255,255,255,.80);
+
   --rr-border: rgba(0,0,0,.14);
   --rr-border-strong: rgba(0,0,0,.22);
 
-  --rr-muted: rgba(0,0,0,.62);
+  --rr-shadow: 0 16px 48px rgba(0,0,0,.18);
 
   --rr-map-min-h: 420px;
   --rr-map-min-h-mobile: 360px;
 
   --rr-panel-w: 520px;
-
-  /* Stacking: keep RR above Squarespace header */
-  --rr-z-app: 2147483000;
-  --rr-z-scrim: 2147483100;
-  --rr-z-panel: 2147483200;
-  --rr-z-panel-ui: 2147483300;
-  --rr-z-modal: 2147483400;
 }
 
 *{ box-sizing:border-box; }
 html,body{ height:100%; }
 body{ margin:0; }
 
-/* =========================================================
-   CRITICAL: Squarespace header layers
-   - Your click target proved header sits above panel.
-   - We force header z-index BELOW RR.
-   ========================================================= */
-.header-announcement-bar-wrapper,
-.Header,
-header.Header,
-.sqs-announcement-bar,
-.sqs-site-header,
-.site-header{
-  position: relative;
-  z-index: 10 !important; /* keep it sane; RR uses ~2.1b */
-}
-
-/* RR root creates reliable stacking context */
+/* Root: inherit Squarespace theme */
 #app{
   position: relative;
-  z-index: var(--rr-z-app);
 }
-
-/* Inherit Squarespace typography/colors */
 #app, #app *{
   font-family: inherit;
   color: inherit;
 }
 
-/* Links */
 #app a{ text-decoration:none; }
 #app a:hover{ text-decoration:underline; }
 
 /* ---------- App shell ---------- */
-#app .app{ min-height:100%; display:flex; flex-direction:column; }
+#app .app{
+  min-height: 100%;
+  display:flex;
+  flex-direction:column;
+}
 
+/* Topbar */
 #app .topbar{
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 5; /* within page flow */
   background: transparent;
   padding: 14px 16px;
   display:flex;
@@ -88,23 +68,36 @@ header.Header,
   gap:10px;
   flex-wrap:wrap;
   justify-content:flex-end;
+  align-items:center;
 }
 
 #app .control{
   background: var(--rr-surface);
-  border:1px solid var(--rr-border);
-  border-radius:12px;
-  padding:10px 12px;
-  outline:none;
+  border: 1px solid var(--rr-border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  outline: none;
 }
-
 #app .control:focus{
   border-color: var(--rr-border-strong);
   box-shadow: 0 0 0 4px rgba(0,0,0,.06);
 }
 
+/* Distance toggle buttons reuse .control + .rr-toggle */
+#app .distanceToggle{ display:flex; gap:8px; align-items:center; }
+#app .rr-toggle{ cursor:pointer; }
+#app .rr-toggle.is-active{
+  border-color: var(--rr-border-strong);
+  box-shadow: 0 0 0 4px rgba(0,0,0,.06);
+}
+
 /* Mobile toggle */
-#app .mobileToggle{ display:none; margin-top:10px; justify-content:flex-end; gap:8px; }
+#app .mobileToggle{
+  display:none;
+  margin-top:10px;
+  justify-content:flex-end;
+  gap:8px;
+}
 #app .toggleBtn{
   background: var(--rr-surface);
   border:1px solid var(--rr-border);
@@ -117,23 +110,34 @@ header.Header,
   box-shadow: 0 0 0 4px rgba(0,0,0,.06);
 }
 
-/* Main grid */
+/* ---------- Layout A: main grid ---------- */
 #app .main{
-  flex:1;
+  flex: 1;
+  min-height: 0;
   display:grid;
-  grid-template-columns: 420px 1fr;
-  min-height:0;
+  grid-template-columns: 420px 1fr; /* list | map */
 }
 
-#app .col{ min-height:0; position:relative; }
+#app .main.has-panel{
+  grid-template-columns: 420px 1fr min(var(--rr-panel-w), 100%); /* list | map | panel */
+}
+
+#app .col{
+  min-height: 0;
+  position: relative;
+}
+
 #app .col--list{
-  border-right:1px solid var(--rr-border);
-  background: transparent;
+  border-right: 1px solid var(--rr-border);
+}
+
+#app .col--map{
+  position: relative;
 }
 
 /* List */
 #app .list{
-  padding:14px;
+  padding: 14px;
   display:flex;
   flex-direction:column;
   gap:10px;
@@ -142,9 +146,9 @@ header.Header,
 }
 
 #app .status{
-  margin:14px;
-  padding:12px;
-  border:1px solid var(--rr-border);
+  margin: 14px;
+  padding: 12px;
+  border: 1px solid var(--rr-border);
   border-radius: var(--rr-radius);
   background: var(--rr-surface2);
   opacity:.85;
@@ -153,13 +157,16 @@ header.Header,
 /* Cards */
 #app .card{
   background: var(--rr-surface);
-  border:1px solid var(--rr-border);
+  border: 1px solid var(--rr-border);
   border-radius: var(--rr-radius);
-  padding:12px;
+  padding: 12px;
   cursor:pointer;
   transition: transform .12s ease, border-color .12s ease, box-shadow .12s ease;
 }
-#app .card:hover{ transform: translateY(-1px); border-color: var(--rr-border-strong); }
+#app .card:hover{
+  transform: translateY(-1px);
+  border-color: var(--rr-border-strong);
+}
 #app .card.is-selected{
   border-color: var(--rr-border-strong);
   box-shadow: 0 0 0 4px rgba(0,0,0,.06);
@@ -167,8 +174,8 @@ header.Header,
 
 #app .card__title{
   font-weight: 600;
-  line-height:1.25;
-  margin-bottom:6px;
+  line-height: 1.25;
+  margin-bottom: 6px;
   font-size: 16px;
 }
 
@@ -181,14 +188,27 @@ header.Header,
 }
 #app .card__stars{ letter-spacing:.8px; }
 #app .card__date{ opacity:.75; }
-#app .card__row2{ margin-top:6px; opacity:.75; font-size:13px; }
+
+#app .card__row2{
+  margin-top: 6px;
+  opacity:.75;
+  font-size:13px;
+}
 
 /* Map */
 #app #colMap,
-#app #map{ min-height: var(--rr-map-min-h); }
-#app .map{ position:absolute; inset:0; }
+#app #map{
+  min-height: var(--rr-map-min-h);
+}
+#app .map{
+  position:absolute;
+  inset:0;
+}
 #app .mapHint{
-  position:absolute; left:12px; bottom:12px; z-index:2;
+  position:absolute;
+  left:12px;
+  bottom:12px;
+  z-index:2;
   background: rgba(0,0,0,.55);
   border:1px solid rgba(255,255,255,.14);
   border-radius: 12px;
@@ -197,73 +217,41 @@ header.Header,
   color: rgba(255,255,255,.82);
 }
 
-/* =========================================================
-   Panel (RIGHT drawer)
-   - One source of truth for positioning + transform
-   - Scrim blocks clicks to Squarespace header
-   ========================================================= */
-#reviewPanel{
-  position: fixed !important;
-  top: 0;
-  right: 0;
-  left: auto !important;
-  width: min(var(--rr-panel-w), 100%);
-  max-width: min(520px, 100vw);
+/* ---------- Panel (in-page column) ---------- */
+#app #reviewPanel{
+  position: relative;
+  width: 100%;
   height: 100%;
   background: var(--rr-surface);
   border-left: 1px solid var(--rr-border);
-  box-shadow: var(--rr-shadow);
-  z-index: var(--rr-z-panel) !important;
-  pointer-events: auto;
-
-  transform: translateX(105%);
-  transition: transform .18s ease;
+  box-shadow: none; /* keep it native */
   display:flex;
   flex-direction:column;
 }
 
-/* Open state (app.js toggles .is-open) */
-#reviewPanel.is-open{
-  transform: translateX(0) !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-}
-
-/* Scrim BEHIND panel content but ABOVE page */
-#reviewPanel.is-open::before{
-  content:"";
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.18);
-  z-index: var(--rr-z-scrim);
-  pointer-events: auto;
-}
-
-/* Make sure panel content is above scrim */
-#reviewPanel > *{
-  position: relative;
-  z-index: var(--rr-z-panel-ui);
-}
-
-/* Header stays clickable */
 #app .panel__header{
   position: sticky;
   top: 0;
+  z-index: 2;
   background: inherit;
   padding: 14px 14px 10px 14px;
   border-bottom: 1px solid var(--rr-border);
-  pointer-events: auto;
 }
 
 #app .panel__title{ font-weight:700; font-size:18px; margin-top:6px; }
-#app .panel__meta{ opacity:.75; font-size:13px; margin-top:6px; display:flex; gap:10px; flex-wrap:wrap; }
-#app .panel__body{ padding:14px; overflow:auto; height:100%; }
+#app .panel__meta{
+  opacity:.75;
+  font-size:13px;
+  margin-top:6px;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
 
-/* Close button must be clickable */
-#panelCloseBtn{
-  pointer-events: auto !important;
-  position: relative;
-  z-index: var(--rr-z-panel-ui);
+#app .panel__body{
+  padding: 14px;
+  overflow:auto;
+  height:100%;
 }
 
 #app .iconBtn{
@@ -275,9 +263,7 @@ header.Header,
 }
 #app .iconBtn:hover{ border-color: var(--rr-border-strong); }
 
-/* =========================================================
-   Gallery + content + comments
-   ========================================================= */
+/* Gallery */
 #app .gallery{
   display:grid;
   grid-template-columns: repeat(3, 1fr);
@@ -295,8 +281,14 @@ header.Header,
   align-items:center;
   justify-content:center;
 }
-#app .gallery__item img{ width:100%; height:100%; object-fit:cover; display:block; }
+#app .gallery__item img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
 
+/* Content (Quill HTML) */
 #app .content{
   border:1px solid var(--rr-border);
   background: var(--rr-surface2);
@@ -330,7 +322,12 @@ header.Header,
   border-radius: var(--rr-radius);
   padding:10px;
 }
-#app .comment__top{ display:flex; gap:10px; align-items:baseline; justify-content:space-between; }
+#app .comment__top{
+  display:flex;
+  gap:10px;
+  align-items:baseline;
+  justify-content:space-between;
+}
 #app .comment__name{ font-weight:600; }
 #app .comment__time{ opacity:.7; font-size:12px; }
 #app .comment__body{ margin-top:8px; white-space:pre-wrap; line-height:1.45; }
@@ -366,14 +363,12 @@ header.Header,
 #app .commentForm__actions{ display:flex; align-items:center; gap:10px; }
 #app .formNote{ opacity:.75; font-size:12px; }
 
-/* =========================================================
-   Modal slideshow — above everything
-   ========================================================= */
+/* ---------- Modal (slideshow) ---------- */
 #app .modal{
   position: fixed;
   inset: 0;
   display: none;
-  z-index: var(--rr-z-modal);
+  z-index: 1000; /* modest; no need to fight header now */
 }
 #app .modal.is-open{ display:block; }
 
@@ -440,74 +435,21 @@ header.Header,
 #app .rr-iw__sub{ opacity:.75; margin-bottom: 6px; }
 #app .rr-iw__link a{ font-weight: 600; }
 
-/* =========================================================
-   Responsive
-   ========================================================= */
-@media (max-width: 980px){
-  #app .main{ grid-template-columns: 1fr; }
-  #app .col--list{ border-right:none; }
-  #app .col--map{ display:none; height: calc(100vh - 84px); }
-  #app .mobileToggle{ display:flex; }
-  #app .row{ grid-template-columns: 1fr; }
-
-  #app #colMap, #app #map{ min-height: var(--rr-map-min-h-mobile); }
-}
-
-/* =========================================================
-   Panel layout A: 3 columns (List | Map | Panel)
-   - Panel lives inside the page layout (no overlap with Squarespace header)
-   ========================================================= */
-
-/* Base layout */
-#app .main{
-  display: grid;
-  grid-template-columns: 420px 1fr; /* list | map */
-  min-height: 0;
-}
-
-/* When panel is open, add third column */
-#app .main.has-panel{
-  grid-template-columns: 420px 1fr min(520px, 100%);
-}
-
-/* Panel becomes a normal column (NOT fixed, no transform) */
-#app #reviewPanel{
-  position: relative !important;
-  top: auto !important;
-  right: auto !important;
-  left: auto !important;
-
-  width: 100% !important;
-  height: 100% !important;
-
-  transform: none !important;
-  transition: none !important;
-
-  z-index: 1 !important;
-}
-
-/* Keep header visible while scrolling panel */
-#app #reviewPanel .panel__header{
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  background: inherit;
-}
-
-/* Make the panel body scroll within the column */
-#app #reviewPanel .panel__body{
-  overflow: auto;
-  height: 100%;
-}
-
-/* Mobile: panel replaces list/map inside the same column */
+/* ---------- Responsive ---------- */
 @media (max-width: 980px){
   #app .main,
   #app .main.has-panel{
     grid-template-columns: 1fr;
   }
 
-  /* When panel open on mobile, hide list/map columns (panel becomes the view) */
+  #app .mobileToggle{ display:flex; }
+  #app .row{ grid-template-columns: 1fr; }
+
+  #app #colMap, #app #map{ min-height: var(--rr-map-min-h-mobile); }
+
+  /* When panel is open, app.js already toggles .has-panel.
+     The CSS below matches your app.js behavior:
+     hide list/map when panel is open on mobile. */
   #app .main.has-panel #colList,
   #app .main.has-panel #colMap{
     display: none !important;
