@@ -534,22 +534,19 @@ function ensureAppMarkup() {
     const review = getReviewByIdSafe(s, s.ui.selectedReviewId);
     const panelEl = qs("#reviewPanel");
     
-    if (!panelEl) return;
-    
-    // Close
-    if (!review) {
-      panelEl.setAttribute("aria-hidden", "true");
-      panelEl.style.setProperty("display", "none", "important");
-      panelEl.classList.remove("is-open");
-      return;
+    if (panelEl) {
+      if (!review) {
+        panelEl.setAttribute("aria-hidden", "true");
+        panelEl.style.setProperty("display", "none", "important");
+        panelEl.classList.remove("is-open");
+      } else {
+        window.RR_UI_PANEL?.renderPanel?.(review);
+        panelEl.setAttribute("aria-hidden", "false");
+        panelEl.style.setProperty("display", "block", "important");
+        panelEl.classList.add("is-open");
+      }
     }
-    
-    // Open
-    window.RR_UI_PANEL?.renderPanel?.(review);
-    panelEl.setAttribute("aria-hidden", "false");
-    panelEl.style.setProperty("display", "block", "important");
-    panelEl.classList.add("is-open");
-    
+        
     // Slideshow images for fallback
     const gallery = qs("#panelGallery");
     if (gallery) {
