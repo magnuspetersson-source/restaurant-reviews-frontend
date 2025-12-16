@@ -415,13 +415,6 @@ function ensureAppMarkup() {
   }
 
   function wirePanelClose() {
-    document.addEventListener("click", (e) => {
-      const btn = e.target.closest("#panelCloseBtn");
-      if (!btn) return;
-      e.preventDefault();
-      e.stopPropagation();
-      actions.selectReview(null, "ui");
-    }, true);
 
     qs("#panelCloseBtn")?.addEventListener("click", (e) => {
       e.preventDefault();
@@ -538,16 +531,22 @@ function ensureAppMarkup() {
 
     // Panel content
     const review = getReviewByIdSafe(s, s.ui.selectedReviewId);
-    window.RR_UI_PANEL?.renderPanel?.(review);
-
-    // Panel visibility
     const panelEl = qs("#reviewPanel");
-    if (panelEl) {
-      const open = !!review;
-      panelEl.setAttribute("aria-hidden", open ? "false" : "true");
-      panelEl.style.setProperty("display", open ? "block" : "none", "important");
+    
+    if (!review) {
+      // HARD CLOSE – renderPanel får ALDRIG null
+      if (panelEl) {
+        panelEl.setAttribute("aria-hidden", "true");
+        panelEl.style.display = "none";
+      }
+    } else {
+      window.RR_UI_PANEL?.renderPanel?.(review);
+      if (panelEl) {
+        panelEl.setAttribute("aria-hidden", "false");
+        panelEl.style.display = "block";
+      }
     }
-
+    
     // Slideshow images for fallback
     const gallery = qs("#panelGallery");
     if (gallery) {
