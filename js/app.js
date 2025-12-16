@@ -538,7 +538,7 @@ function ensureAppMarkup() {
       panelEl.setAttribute("aria-hidden", open ? "false" : "true");
       panelEl.style.setProperty("display", open ? "block" : "none", "important");
       panelEl.classList.toggle("is-open", open);
-    } = qs("#reviewPanel");
+    }
     
     if (!review) {
       if (panelEl) {
