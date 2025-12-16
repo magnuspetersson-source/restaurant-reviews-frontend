@@ -1,7 +1,11 @@
+// app.js (public page)
+
 function ensureAppMarkup() {
   const root = document.getElementById("app");
   if (!root) throw new Error("Missing #app root");
-  if (document.getElementById("sortSelect")) return;
+
+  // IMPORTANT: only check inside #app, not the whole document
+  if (root.querySelector("#sortSelect")) return;
 
   root.innerHTML = `
     <header class="topbar">
@@ -42,6 +46,23 @@ function ensureAppMarkup() {
             <option value="2">★★+</option>
             <option value="1">★+</option>
           </select>
+
+          <!-- Distance toggle INSIDE .controls so it's not lost/styled weirdly -->
+          <div class="distanceToggle" role="group" aria-label="Avstånd">
+            <button
+              id="distanceHomeBtn"
+              type="button"
+              class="control rr-toggle is-active"
+              aria-pressed="true"
+            >Huset</button>
+
+            <button
+              id="distanceMeBtn"
+              type="button"
+              class="control rr-toggle"
+              aria-pressed="false"
+            >Min position</button>
+          </div>
         </div>
 
         <div class="mobileToggle" id="mobileToggle">
@@ -128,18 +149,68 @@ function ensureAppMarkup() {
   `;
 }
 
-// Markers: rebuild only when list changes
-let __RR_MARKERS_KEY = "";
-function __rrMarkersKey(reviews) {
-  return (reviews || []).map(r => `${r.id}:${r.restaurant_lat}:${r.restaurant_lng}`).join("|");
-}
-
 (function () {
   const { qs, setHidden } = window.RR_DOM;
   const { actions, state, subscribe } = window.RR_STATE;
   const selectors = window.RR_STATE.selectors || null;
 
-  // --- Safe wrappers (so we never depend on optional net actions) ---
+  // --- Distance mode: "Vi äter oss ur huset"
+  let __distanceMode = "home"; // "home" | "me"
+  let __userPos = null;
+
+  function __haversineKm(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const toRad = (d) => (d * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(lat1)) *
+        Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(a));
+  }
+
+  function __getUserPosOnce() {
+    if (__userPos) return Promise.resolve(__userPos);
+
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error("Geolocation stöds inte"));
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          __userPos = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          };
+          resolve(__userPos);
+        },
+        () => reject(new Error("Platsåtkomst nekades")),
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+      );
+    });
+  }
+
+  function __setDistanceMode(mode) {
+    __distanceMode = mode === "me" ? "me" : "home";
+
+    const homeBtn = document.getElementById("distanceHomeBtn");
+    const meBtn = document.getElementById("distanceMeBtn");
+
+    if (homeBtn) {
+      homeBtn.classList.toggle("is-active", __distanceMode === "home");
+      homeBtn.setAttribute("aria-pressed", __distanceMode === "home" ? "true" : "false");
+    }
+    if (meBtn) {
+      meBtn.classList.toggle("is-active", __distanceMode === "me");
+      meBtn.setAttribute("aria-pressed", __distanceMode === "me" ? "true" : "false");
+    }
+  }
+
+  // --- Safe wrappers (so we never depend on optional net actions)
   function setNetLoadingSafe(key, val) {
     if (typeof actions.setNetLoading === "function") actions.setNetLoading(key, val);
   }
@@ -147,21 +218,35 @@ function __rrMarkersKey(reviews) {
     if (typeof actions.setNetError === "function") actions.setNetError(key, val);
   }
 
-  // --- Helpers ---
+  // --- Helpers
+  function isReviewed(r) {
+    // "Visa bara recenserade" — robust fallback:
+    // if comment/review HTML exists OR rating exists, treat as reviewed
+    const hasText = !!(r?.comment && String(r.comment).trim());
+    const hasRating = r?.rating != null && Number.isFinite(Number(r.rating));
+    return hasText || hasRating;
+  }
+
   function getReviewByIdSafe(s, id) {
     const num = (id === null || id === undefined || id === "") ? null : Number(id);
     if (!Number.isFinite(num)) return null;
+
     const byId = s?.data?.byId;
     if (byId && byId[num]) return byId[num];
+
     const reviews = Array.isArray(s?.data?.reviews) ? s.data.reviews : [];
     return reviews.find(r => Number(r.id) === num) || null;
   }
 
   function getListForRender(s) {
+    let arr;
     if (selectors && typeof selectors.getFilteredSortedReviews === "function") {
-      return selectors.getFilteredSortedReviews();
+      arr = selectors.getFilteredSortedReviews();
+    } else {
+      arr = Array.isArray(s?.data?.reviews) ? s.data.reviews : [];
     }
-    return Array.isArray(s?.data?.reviews) ? s.data.reviews : [];
+    // enforce scope: reviewed only
+    return (arr || []).filter(isReviewed);
   }
 
   async function postComment(reviewId) {
@@ -230,7 +315,7 @@ function __rrMarkersKey(reviews) {
     });
   }
 
-  // --- Slideshow fallback ---
+  // --- Slideshow fallback
   let __SS = { open: false, images: [], index: 0 };
 
   function getGalleryImagesFromDOM() {
@@ -301,17 +386,35 @@ function __rrMarkersKey(reviews) {
     });
   }
 
-  // --- Wiring ---
+  // --- Wiring
   function wireTopbar() {
     qs("#sortSelect")?.addEventListener("change", (e) => actions.setSort(e.target.value));
     qs("#typeSelect")?.addEventListener("change", (e) => actions.setFilter("type", e.target.value));
     qs("#priceSelect")?.addEventListener("change", (e) => actions.setFilter("price", e.target.value));
     qs("#minRatingSelect")?.addEventListener("change", (e) => actions.setFilter("minRating", e.target.value));
+
+    const homeBtn = document.getElementById("distanceHomeBtn");
+    const meBtn = document.getElementById("distanceMeBtn");
+
+    homeBtn?.addEventListener("click", () => {
+      __setDistanceMode("home");
+      render(state);
+    });
+
+    meBtn?.addEventListener("click", async () => {
+      __setDistanceMode("me");
+      try {
+        await __getUserPosOnce();
+        render(state);
+      } catch (err) {
+        console.warn("[RR] Geolocation failed:", err);
+        __setDistanceMode("home");
+        render(state);
+      }
+    });
   }
 
-  // Panel close: delegated catcher + direct listener (belt & suspenders)
   function wirePanelClose() {
-    // delegated (survives rerenders/overlays)
     document.addEventListener("click", (e) => {
       const btn = e.target.closest("#panelCloseBtn");
       if (!btn) return;
@@ -320,7 +423,6 @@ function __rrMarkersKey(reviews) {
       actions.selectReview(null, "ui");
     }, true);
 
-    // direct (nice-to-have)
     qs("#panelCloseBtn")?.addEventListener("click", (e) => {
       e.preventDefault();
       actions.selectReview(null, "ui");
@@ -363,7 +465,7 @@ function __rrMarkersKey(reviews) {
     }
   }
 
-  // --- Data load ---
+  // --- Data load
   async function loadReviewsOnce() {
     setNetLoadingSafe("reviews", true);
     setNetErrorSafe("reviews", null);
@@ -390,33 +492,55 @@ function __rrMarkersKey(reviews) {
     }
   }
 
-  // --- Render ---
+  // --- Render
   function render(s) {
     const list = getListForRender(s);
 
-    // List
+    // Distance: inject _distance_km based on mode
+    const listWithDistance = (list || []).map((r) => {
+      let km = null;
+
+      if (
+        __distanceMode === "me" &&
+        __userPos &&
+        r.restaurant_lat != null &&
+        r.restaurant_lng != null
+      ) {
+        const lat = Number(r.restaurant_lat);
+        const lng = Number(r.restaurant_lng);
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          km = __haversineKm(__userPos.lat, __userPos.lng, lat, lng);
+        }
+      }
+
+      if (!Number.isFinite(km)) {
+        const h = Number(r.home_distance_km);
+        km = Number.isFinite(h) ? h : null;
+      }
+
+      return { ...r, _distance_km: Number.isFinite(km) ? km : null };
+    });
+
+    // List (stars + date + type/price/distance is handled by list.js)
     const listUI = window.RR_UI_LIST || window.RR_LIST;
     if (listUI?.renderList) {
-      listUI.renderList(list, s.ui.selectedReviewId, (id, source) =>
+      listUI.renderList(listWithDistance, s.ui.selectedReviewId, (id, source) =>
         actions.selectReview(id, source || "list")
       );
     }
 
-    // Markers
-    if (window.RR_MAP?.getMap?.() && window.google && google.maps) {
-      const key = __rrMarkersKey(list);
-      if (key !== __RR_MARKERS_KEY) {
-        __RR_MARKERS_KEY = key;
-        window.RR_MARKERS.renderMarkers(list, null, (id) => actions.selectReview(id, "map"));
-      }
-      window.RR_MARKERS.highlightSelected(s.ui.selectedReviewId);
+    // Markers (default red pins + InfoWindow handled by markers.js)
+    if (window.RR_MAP?.getMap?.() && window.google && google.maps && window.RR_MARKERS?.renderMarkers) {
+      // IMPORTANT: call every render so InfoWindow/meta updates when distance mode changes
+      window.RR_MARKERS.renderMarkers(listWithDistance, null, (id) => actions.selectReview(id, "map"));
+      window.RR_MARKERS.highlightSelected?.(s.ui.selectedReviewId);
     }
 
     // Panel content
     const review = getReviewByIdSafe(s, s.ui.selectedReviewId);
     window.RR_UI_PANEL?.renderPanel?.(review);
 
-    // Panel visibility (SINGLE source of truth + forced !important)
+    // Panel visibility
     const panelEl = qs("#reviewPanel");
     if (panelEl) {
       const open = !!review;
@@ -432,15 +556,22 @@ function __rrMarkersKey(reviews) {
     }
 
     // Meta
-    qs("#resultsMeta").textContent = `${list.length} recensioner`;
+    const meta = qs("#resultsMeta");
+    if (meta) meta.textContent = `${list.length} recensioner`;
 
     // Mobile
     applyMobileMode(s.ui.viewMode || "list");
   }
 
-  // --- Init ---
+  // --- Init
   async function init() {
     ensureAppMarkup();
+
+    // sanity check: distance buttons must exist after markup
+    // (this also helps you debug quickly if Squarespace injects multiple scripts)
+    if (!document.getElementById("distanceHomeBtn")) {
+      console.warn("[RR] distance buttons missing after ensureAppMarkup()");
+    }
 
     wireTopbar();
     wirePanelClose();
@@ -448,8 +579,7 @@ function __rrMarkersKey(reviews) {
     wireCommentForm();
     wireSlideshowFallback();
 
-    // IMPORTANT: do NOT wire RR_UI_COMMENTS here, it causes double-submit
-    // window.RR_UI_COMMENTS?.wireComments?.();
+    // Modal (if you have a separate module)
     window.RR_UI_MODAL?.wireModal?.();
 
     subscribe(render);
@@ -460,8 +590,10 @@ function __rrMarkersKey(reviews) {
       await window.RR_MAP.initMap(mapEl);
     } catch (e) {
       const hint = qs("#mapHint");
-      hint.textContent = e.message || "Kunde inte initiera karta";
-      setHidden(hint, false);
+      if (hint) {
+        hint.textContent = e.message || "Kunde inte initiera karta";
+        setHidden(hint, false);
+      }
     }
 
     await loadReviewsOnce();
@@ -474,7 +606,7 @@ function __rrMarkersKey(reviews) {
       await window.RR_UI_COMMENTS?.loadComments?.(initialReview.id);
     }
 
-    // Close on Escape (nice UX)
+    // Close on Escape
     window.addEventListener("keydown", (e) => {
       if (e.key !== "Escape") return;
       if (window.RR_STATE?.state?.ui?.selectedReviewId != null) actions.selectReview(null, "escape");
@@ -484,5 +616,10 @@ function __rrMarkersKey(reviews) {
     render(state);
   }
 
-  document.addEventListener("DOMContentLoaded", init);
+  // Squarespace sometimes loads scripts after DOMContentLoaded
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
 })();
