@@ -38,7 +38,7 @@
     metaEl.textContent = parts.filter(Boolean).join(" · ");
 
     // Content (Quill HTML usually lives in review.comment)
-    const html = review.comment || "";
+    const html = review.comment_html || review.comment || "";
     contentEl.innerHTML = html ? String(html) : "<p><em>Ingen recensionstext.</em></p>";
 
     // Gallery (optional)

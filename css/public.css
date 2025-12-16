@@ -1,10 +1,11 @@
 /* =========================================================
    Restaurant Reviews (Public) — Layout A (List | Map | Panel)
-   Squarespace-first: inherit typography/colors, minimal tokens.
-   Panel is IN-PAGE (3rd column), no overlay.
+   Harmonized with Admin look:
+   - Rounded "card" background around the whole app
+   - Rounded map corners (like admin #rra-map)
+   - Lighter input fields (like admin inputs)
    ========================================================= */
 
-/* ---------- Tokens ---------- */
 :root{
   --rr-gap: 14px;
   --rr-radius: 16px;
@@ -13,8 +14,11 @@
   --rr-surface: rgba(255,255,255,.92);
   --rr-surface2: rgba(255,255,255,.80);
 
+  --rr-field-bg: rgba(255,255,255,.98);
+  --rr-field-border: rgba(0,0,0,.18);
+
   --rr-border: rgba(0,0,0,.14);
-  --rr-border-strong: rgba(0,0,0,.22);
+  --rr-border-strong: rgba(0,0,0,.55);
 
   --rr-shadow: 0 16px 48px rgba(0,0,0,.18);
 
@@ -22,38 +26,48 @@
   --rr-map-min-h-mobile: 360px;
 
   --rr-panel-w: 520px;
+
+  /* outer spacing around the "card" */
+  --rr-card-pad: 16px;
+  --rr-card-margin-y: 16px;
 }
 
 *{ box-sizing:border-box; }
 html,body{ height:100%; }
 body{ margin:0; }
 
-/* Root: inherit Squarespace theme */
-#app{
-  position: relative;
-}
-#app, #app *{
-  font-family: inherit;
-  color: inherit;
-}
-
+/* Root: inherit Squarespace theme typography/colors */
+#app{ position: relative; }
+#app, #app *{ font-family: inherit; color: inherit; }
 #app a{ text-decoration:none; }
 #app a:hover{ text-decoration:underline; }
 
-/* ---------- App shell ---------- */
+/* =========================================================
+   "Rounded background card" like admin .rra-card
+   (Admin uses rgba(255,255,255,.92) + border + radius)
+   ========================================================= */
 #app .app{
   min-height: 100%;
   display:flex;
   flex-direction:column;
+
+  background: var(--rr-surface);
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: var(--rr-radius);
+  padding: var(--rr-card-pad);
+  margin: var(--rr-card-margin-y) 0;
+
+  /* keep content inside rounded corners */
+  overflow: hidden;
 }
 
 /* Topbar */
 #app .topbar{
   position: sticky;
   top: 0;
-  z-index: 5; /* within page flow */
+  z-index: 5;
   background: transparent;
-  padding: 14px 16px;
+  padding: 6px 0 12px 0; /* inside the card */
   display:flex;
   gap: 14px;
   align-items:flex-start;
@@ -71,24 +85,25 @@ body{ margin:0; }
   align-items:center;
 }
 
+/* Lighter fields (admin-like) */
 #app .control{
-  background: var(--rr-surface);
-  border: 1px solid var(--rr-border);
+  background: var(--rr-field-bg);
+  border: 1px solid var(--rr-field-border);
   border-radius: 12px;
   padding: 10px 12px;
   outline: none;
 }
 #app .control:focus{
   border-color: var(--rr-border-strong);
-  box-shadow: 0 0 0 4px rgba(0,0,0,.06);
+  box-shadow: 0 0 0 3px rgba(0,0,0,.08);
 }
 
-/* Distance toggle buttons reuse .control + .rr-toggle */
+/* Distance toggle */
 #app .distanceToggle{ display:flex; gap:8px; align-items:center; }
 #app .rr-toggle{ cursor:pointer; }
 #app .rr-toggle.is-active{
   border-color: var(--rr-border-strong);
-  box-shadow: 0 0 0 4px rgba(0,0,0,.06);
+  box-shadow: 0 0 0 3px rgba(0,0,0,.08);
 }
 
 /* Mobile toggle */
@@ -99,27 +114,30 @@ body{ margin:0; }
   gap:8px;
 }
 #app .toggleBtn{
-  background: var(--rr-surface);
-  border:1px solid var(--rr-border);
+  background: var(--rr-field-bg);
+  border:1px solid var(--rr-field-border);
   border-radius:999px;
   padding:8px 12px;
   cursor:pointer;
 }
 #app .toggleBtn.is-active{
   border-color: var(--rr-border-strong);
-  box-shadow: 0 0 0 4px rgba(0,0,0,.06);
+  box-shadow: 0 0 0 3px rgba(0,0,0,.08);
 }
 
-/* ---------- Layout A: main grid ---------- */
+/* =========================================================
+   Layout A: main grid
+   ========================================================= */
 #app .main{
   flex: 1;
   min-height: 0;
   display:grid;
-  grid-template-columns: 420px 1fr; /* list | map */
+  grid-template-columns: 420px 1fr;
+  gap: var(--rr-gap);
 }
 
 #app .main.has-panel{
-  grid-template-columns: 420px 1fr min(var(--rr-panel-w), 100%); /* list | map | panel */
+  grid-template-columns: 420px 1fr min(var(--rr-panel-w), 100%);
 }
 
 #app .col{
@@ -127,17 +145,15 @@ body{ margin:0; }
   position: relative;
 }
 
+/* Left column */
 #app .col--list{
-  border-right: 1px solid var(--rr-border);
-}
-
-#app .col--map{
-  position: relative;
+  border-right: 1px solid rgba(0,0,0,.08);
+  padding-right: var(--rr-gap);
 }
 
 /* List */
 #app .list{
-  padding: 14px;
+  padding: 0; /* card already has padding */
   display:flex;
   flex-direction:column;
   gap:10px;
@@ -146,18 +162,18 @@ body{ margin:0; }
 }
 
 #app .status{
-  margin: 14px;
+  margin: 0 0 12px 0;
   padding: 12px;
-  border: 1px solid var(--rr-border);
+  border: 1px solid rgba(0,0,0,.08);
   border-radius: var(--rr-radius);
-  background: var(--rr-surface2);
-  opacity:.85;
+  background: rgba(255,255,255,.85);
+  opacity:.9;
 }
 
 /* Cards */
 #app .card{
-  background: var(--rr-surface);
-  border: 1px solid var(--rr-border);
+  background: rgba(255,255,255,.95);
+  border: 1px solid rgba(0,0,0,.12);
   border-radius: var(--rr-radius);
   padding: 12px;
   cursor:pointer;
@@ -165,11 +181,11 @@ body{ margin:0; }
 }
 #app .card:hover{
   transform: translateY(-1px);
-  border-color: var(--rr-border-strong);
+  border-color: rgba(0,0,0,.18);
 }
 #app .card.is-selected{
-  border-color: var(--rr-border-strong);
-  box-shadow: 0 0 0 4px rgba(0,0,0,.06);
+  border-color: rgba(0,0,0,.35);
+  box-shadow: 0 0 0 3px rgba(0,0,0,.08);
 }
 
 #app .card__title{
@@ -195,7 +211,18 @@ body{ margin:0; }
   font-size:13px;
 }
 
-/* Map */
+/* =========================================================
+   Map: rounded corners like admin #rra-map
+   (border-radius + overflow hidden on the container)
+   ========================================================= */
+#app #colMap{
+  border-radius: 0.75rem;
+  border: 1px solid rgba(0,0,0,0.08);
+  overflow: hidden;
+  background: rgba(255,255,255,.80);
+}
+
+/* Make sure map fills and respects rounding */
 #app #colMap,
 #app #map{
   min-height: var(--rr-map-min-h);
@@ -204,6 +231,8 @@ body{ margin:0; }
   position:absolute;
   inset:0;
 }
+
+/* Map hint */
 #app .mapHint{
   position:absolute;
   left:12px;
@@ -217,25 +246,30 @@ body{ margin:0; }
   color: rgba(255,255,255,.82);
 }
 
-/* ---------- Panel (in-page column) ---------- */
+/* =========================================================
+   Panel (3rd column): optionally rounded right side too
+   ========================================================= */
 #app #reviewPanel{
   position: relative;
   width: 100%;
   height: 100%;
-  background: var(--rr-surface);
-  border-left: 1px solid var(--rr-border);
-  box-shadow: none; /* keep it native */
+  background: rgba(255,255,255,.95);
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 0.75rem;
+  overflow: hidden;
+
   display:flex;
   flex-direction:column;
 }
 
+/* Panel header */
 #app .panel__header{
   position: sticky;
   top: 0;
   z-index: 2;
   background: inherit;
   padding: 14px 14px 10px 14px;
-  border-bottom: 1px solid var(--rr-border);
+  border-bottom: 1px solid rgba(0,0,0,.08);
 }
 
 #app .panel__title{ font-weight:700; font-size:18px; margin-top:6px; }
@@ -254,14 +288,15 @@ body{ margin:0; }
   height:100%;
 }
 
+/* Buttons */
 #app .iconBtn{
-  background: var(--rr-surface2);
-  border: 1px solid var(--rr-border);
+  background: rgba(255,255,255,.95);
+  border: 1px solid var(--rr-field-border);
   border-radius: 12px;
   padding: 8px 10px;
   cursor: pointer;
 }
-#app .iconBtn:hover{ border-color: var(--rr-border-strong); }
+#app .iconBtn:hover{ border-color: rgba(0,0,0,.35); }
 
 /* Gallery */
 #app .gallery{
@@ -271,9 +306,9 @@ body{ margin:0; }
   margin-bottom:14px;
 }
 #app .gallery__item{
-  border-radius: 16px;
-  border: 1px solid var(--rr-border);
-  background: var(--rr-surface2);
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,.10);
+  background: rgba(255,255,255,.92);
   overflow:hidden;
   cursor:pointer;
   aspect-ratio: 1 / 1;
@@ -290,8 +325,8 @@ body{ margin:0; }
 
 /* Content (Quill HTML) */
 #app .content{
-  border:1px solid var(--rr-border);
-  background: var(--rr-surface2);
+  border:1px solid rgba(0,0,0,.10);
+  background: rgba(255,255,255,.92);
   border-radius: var(--rr-radius);
   padding:12px;
   margin-bottom:16px;
@@ -308,6 +343,19 @@ body{ margin:0; }
   background: rgba(0,0,0,.03);
   border-radius: 12px;
 }
+/* === FIX: Quill/content text can inherit white from Squarespace theme === */
+#app .content{
+  color: rgba(0,0,0,.88);
+}
+
+#app .content *{
+  color: inherit;
+}
+
+#app .content a{
+  color: rgba(0,0,0,.88);
+  text-decoration: underline;
+}
 
 /* Comments */
 #app .comments{ margin-top:14px; }
@@ -317,8 +365,8 @@ body{ margin:0; }
 
 #app .comments__list{ display:flex; flex-direction:column; gap:10px; margin-bottom:14px; }
 #app .comment{
-  border:1px solid var(--rr-border);
-  background: var(--rr-surface2);
+  border:1px solid rgba(0,0,0,.10);
+  background: rgba(255,255,255,.92);
   border-radius: var(--rr-radius);
   padding:10px;
 }
@@ -333,42 +381,54 @@ body{ margin:0; }
 #app .comment__body{ margin-top:8px; white-space:pre-wrap; line-height:1.45; }
 
 #app .commentForm{
-  border:1px solid var(--rr-border);
-  background: var(--rr-surface2);
+  border:1px solid rgba(0,0,0,.10);
+  background: rgba(255,255,255,.92);
   border-radius: var(--rr-radius);
   padding:12px;
 }
+
+#app .comments, 
+#app .comment, 
+#app .commentForm{
+  color: rgba(0,0,0,.88);
+}
+
 #app .row{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
 #app .field{ display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
 #app .field span{ font-size:12px; opacity:.75; }
 #app .field input, #app .field textarea{
   width:100%;
-  background: rgba(255,255,255,.98);
-  border:1px solid var(--rr-border);
+  background: var(--rr-field-bg);
+  border:1px solid var(--rr-field-border);
   border-radius: 12px;
   padding:10px 12px;
   outline:none;
 }
+#app .field input:focus, #app .field textarea:focus{
+  border-color: var(--rr-border-strong);
+  box-shadow: 0 0 0 3px rgba(0,0,0,.08);
+}
 #app .field textarea{ min-height: 96px; resize: vertical; }
+
 #app .btn{
   background: rgba(0,0,0,.06);
-  border: 1px solid var(--rr-border);
+  border: 1px solid var(--rr-field-border);
   border-radius: 12px;
   padding:10px 12px;
   cursor:pointer;
   font-weight:600;
 }
-#app .btn:hover{ border-color: var(--rr-border-strong); }
+#app .btn:hover{ border-color: rgba(0,0,0,.35); }
 #app .btn:disabled{ opacity:.6; cursor:not-allowed; }
 #app .commentForm__actions{ display:flex; align-items:center; gap:10px; }
 #app .formNote{ opacity:.75; font-size:12px; }
 
-/* ---------- Modal (slideshow) ---------- */
+/* Modal (slideshow) — keep simple */
 #app .modal{
   position: fixed;
   inset: 0;
   display: none;
-  z-index: 1000; /* modest; no need to fight header now */
+  z-index: 1000;
 }
 #app .modal.is-open{ display:block; }
 
@@ -386,7 +446,7 @@ body{ margin:0; }
   transform: translate(-50%,-50%);
   width:min(980px, calc(100% - 24px));
   background: rgba(255,255,255,.96);
-  border:1px solid var(--rr-border);
+  border:1px solid rgba(0,0,0,.14);
   border-radius: var(--rr-radius2);
   box-shadow: var(--rr-shadow);
   padding:12px;
@@ -412,18 +472,18 @@ body{ margin:0; }
   object-fit: contain;
   border-radius: 18px;
   background: rgba(0,0,0,.03);
-  border:1px solid var(--rr-border);
+  border:1px solid rgba(0,0,0,.12);
 }
 
 #app .navBtn{
-  background: var(--rr-surface2);
-  border: 1px solid var(--rr-border);
+  background: rgba(255,255,255,.95);
+  border: 1px solid rgba(0,0,0,.18);
   border-radius: 14px;
   height: 46px;
   cursor:pointer;
   font-size:24px;
 }
-#app .navBtn:hover{ border-color: var(--rr-border-strong); }
+#app .navBtn:hover{ border-color: rgba(0,0,0,.35); }
 
 #app .modal__caption{ padding: 0 12px 8px 12px; opacity:.75; font-size: 13px; }
 #app .modal__counter{ padding: 0 12px 10px 12px; opacity:.7; font-size: 12px; }
@@ -435,11 +495,12 @@ body{ margin:0; }
 #app .rr-iw__sub{ opacity:.75; margin-bottom: 6px; }
 #app .rr-iw__link a{ font-weight: 600; }
 
-/* ---------- Responsive ---------- */
+/* Responsive */
 @media (max-width: 980px){
   #app .main,
   #app .main.has-panel{
     grid-template-columns: 1fr;
+    gap: 12px;
   }
 
   #app .mobileToggle{ display:flex; }
@@ -447,9 +508,7 @@ body{ margin:0; }
 
   #app #colMap, #app #map{ min-height: var(--rr-map-min-h-mobile); }
 
-  /* When panel is open, app.js already toggles .has-panel.
-     The CSS below matches your app.js behavior:
-     hide list/map when panel is open on mobile. */
+  /* When panel open: hide list/map (matches your app.js behavior) */
   #app .main.has-panel #colList,
   #app .main.has-panel #colMap{
     display: none !important;
@@ -457,6 +516,5 @@ body{ margin:0; }
 
   #app .main.has-panel #reviewPanel{
     display: block !important;
-    border-left: none;
   }
 }
