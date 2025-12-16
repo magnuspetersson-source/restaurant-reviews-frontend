@@ -533,6 +533,12 @@ function ensureAppMarkup() {
     // Panel content
     const review = getReviewByIdSafe(s, s.ui.selectedReviewId);
     const panelEl = qs("#reviewPanel");
+    if (panelEl) {
+      const open = !!review;
+      panelEl.setAttribute("aria-hidden", open ? "false" : "true");
+      panelEl.style.setProperty("display", open ? "block" : "none", "important");
+      panelEl.classList.toggle("is-open", open);
+    } = qs("#reviewPanel");
     
     if (!review) {
       if (panelEl) {

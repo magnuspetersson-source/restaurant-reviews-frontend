@@ -14,21 +14,29 @@
   --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
 }
 
-#app #panelCloseBtn {
-  pointer-events: auto !important;
-}
-
-#app .panel {
-  pointer-events: auto;
-  position: fixed;        /* viktigt */
-  z-index: 20010;
-  inset: 0 auto 0 0;      /* eller din befintliga layout */
-}
-
-/* Lyft RR-appen över Squarespace-headern */
+/* Lift RR above Squarespace header and make panel clickable */
 #app {
   position: relative;
   z-index: 20000;
+}
+
+/* Panel must be above Squarespace header */
+#app #reviewPanel,
+#app .panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: auto;
+  height: 100%;
+  pointer-events: auto;
+  z-index: 20050;
+}
+
+/* Close button must always be clickable */
+#app #panelCloseBtn {
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 20051;
 }
 
 *{ box-sizing:border-box; }
@@ -189,7 +197,7 @@ a:hover{ text-decoration:underline; }
   box-shadow: var(--shadow);
   transform: translateX(105%);
   transition: transform .18s ease;
-  z-index:30;
+  z-index:20050;
   display:flex;
   flex-direction:column;
 }
