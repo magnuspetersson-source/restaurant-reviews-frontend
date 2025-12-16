@@ -535,6 +535,34 @@ function __rrMarkersKey(reviews) {
       null;
 
     const open = !!review;
+    
+    // Ensure selected review has _distance_km for panel (same as list)
+    let reviewForPanel = review;
+    
+    if (open && review) {
+      const mode = (typeof __distanceMode === "string") ? __distanceMode : "home";
+    
+      // label used by panel.js
+      window.RR_DISTANCE_LABEL = (mode === "me") ? "från Min position" : "från Huset";
+    
+      // compute distance (match your list logic)
+      let km = null;
+    
+      if (mode === "me" && __userPos && review.restaurant_lat != null && review.restaurant_lng != null) {
+        const lat = Number(review.restaurant_lat);
+        const lng = Number(review.restaurant_lng);
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          km = haversineKm(__userPos.lat, __userPos.lng, lat, lng);
+        }
+      }
+    
+      if (!Number.isFinite(km)) {
+        const h = Number(review.home_distance_km);
+        km = Number.isFinite(h) ? h : null;
+      }
+    
+      reviewForPanel = { ...review, _distance_km: Number.isFinite(km) ? km : null };
+    }    
 
     // Panel visibility
     const panelEl = document.getElementById("reviewPanel");
@@ -548,9 +576,23 @@ function __rrMarkersKey(reviews) {
 
       // Render content AFTER visibility set (and never crash render loop)
       if (open) {
-        try { window.RR_UI_PANEL?.renderPanel?.(review); }
+        try { window.RR_UI_PANEL?.renderPanel?.(reviewForPanel); }
         catch (e) { console.error("[RR] RR_UI_PANEL.renderPanel crashed:", e); }
       }
+    }
+
+    /* ✅ LÄGG IN HÄR: comments render */
+    if (open && window.RR_UI_COMMENTS?.renderComments) {
+      const rid = s?.ui?.selectedReviewId;
+      const data = s?.data || {};
+    
+      const comments =
+        (data.commentsByReviewId && (data.commentsByReviewId[rid] || data.commentsByReviewId[String(rid)])) ||
+        (data.comments && (data.comments[rid] || data.comments[String(rid)])) ||
+        (Array.isArray(data.comments) ? data.comments : []) ||
+        [];
+    
+      window.RR_UI_COMMENTS.renderComments(comments);
     }
 
     // Slideshow images for fallback

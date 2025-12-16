@@ -287,7 +287,21 @@ body{ margin:0; }
   overflow:auto;
   height:100%;
 }
+/* Panel header: reserve space and show meta in top-right */
+#app .panel__header{
+  position: sticky;
+  top: 0;
+  padding-right: 160px; /* space for top-right meta */
+}
 
+#app .panel__metaTop{
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  font-size: 13px;
+  opacity: .75;
+  white-space: nowrap;
+}
 /* Buttons */
 #app .iconBtn{
   background: rgba(255,255,255,.95);
@@ -517,4 +531,81 @@ body{ margin:0; }
   #app .main.has-panel #reviewPanel{
     display: block !important;
   }
+}
+/* Bigger slideshow caption (override old 13px rule) */
+#app .modal__caption{
+  padding: 0 12px 10px 12px;
+  opacity: .95;
+  font-size: 18px;
+  line-height: 1.35;
+}
+
+/* Panel header: make close button top-left and meta stack top-right */
+#app .panel__header{
+  position: sticky;
+  top: 0;
+  position: relative;      /* needed for absolute children */
+  padding-left: 54px;      /* space for close button */
+  padding-right: 260px;    /* space for right meta stack */
+}
+
+/* Close button: fixed spot */
+#app #panelCloseBtn{
+  position: absolute;
+  top: 14px;
+  left: 14px;
+}
+
+/* Right meta stack */
+#app .panel__metaTop{
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 240px;
+}
+
+#app .pm-title{
+  font-weight: 800;
+  line-height: 1.15;
+  font-size: 18px;
+  opacity: 1;
+}
+
+#app .pm-row1{
+  font-size: 16px;
+  line-height: 1.1;
+  letter-spacing: .6px;
+  opacity: .95;
+}
+
+#app .pm-row2{
+  font-size: 13px;
+  line-height: 1.2;
+  opacity: .75;
+}
+
+/* Make panel content start below the sticky header so it never overlaps */
+#app #reviewPanel .panel__body{
+  padding-top: 16px;
+}
+
+/* If header meta block is tall, reserve more space */
+#app #reviewPanel .panel__header{
+  min-height: 92px; /* room for title + two meta rows */
+}
+
+/* Map column tries to be as tall as it is wide (square), but keeps a min height */
+#app #colMap{
+  aspect-ratio: 1 / 1;
+  min-height: var(--rr-map-min-h);
+}
+
+/* Ensure the actual map fills the container */
+#app #map{
+  height: 100%;
+  min-height: inherit;
 }
