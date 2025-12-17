@@ -676,3 +676,34 @@ body{ margin:0; }
     transform: translateY(10px);
   }
 }
+
+/* --- Mobile: keep slideshow modal below Squarespace header --- */
+@media (max-width: 980px){
+  #app .modal{
+    /* instead of inset:0 */
+    top: var(--rr-header-offset, 0px);
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: calc(100dvh - var(--rr-header-offset, 0px));
+  }
+
+  /* Make sure overlay covers only the available area */
+  #app .modal__overlay{
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+  }
+
+  /* Keep dialog within available height */
+  #app .modal__dialog{
+    max-height: calc(100dvh - var(--rr-header-offset, 0px) - 24px);
+    overflow: auto;
+  }
+
+  /* Optional: ensure close button stays reachable */
+  #app .modal__close{
+    top: 12px;
+  }
+}
