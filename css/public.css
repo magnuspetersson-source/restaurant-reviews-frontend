@@ -609,3 +609,11 @@ body{ margin:0; }
   height: 100%;
   min-height: inherit;
 }
+
+#app .distanceLabel{
+  font-size: 13px;
+  opacity: .75;
+  margin-right: 6px;
+  align-self: center;
+  white-space: nowrap;
+}

@@ -18,7 +18,7 @@ function ensureAppMarkup() {
       <header class="topbar">
         <div class="topbar__left">
           <div class="brand">
-            <div class="brand__title">Restaurant Reviews</div>
+            <div class="brand__title">Recensioner</div>
             <div class="brand__sub" id="resultsMeta">Laddar…</div>
           </div>
         </div>
@@ -55,6 +55,7 @@ function ensureAppMarkup() {
             </select>
 
             <div class="distanceToggle" role="group" aria-label="Avstånd">
+              <span class="distanceLabel">Avstånd från:</span>
               <button id="distanceHomeBtn" type="button" class="control rr-toggle is-active" aria-pressed="true">Huset</button>
               <button id="distanceMeBtn" type="button" class="control rr-toggle" aria-pressed="false">Min position</button>
             </div>
@@ -493,7 +494,27 @@ function __rrMarkersKey(reviews) {
       const reviews = await window.RR_API.getReviews();
       actions.setReviews(reviews);
 
-      try { window.RR_UI_LIST?.renderTypeOptions?.(reviews); } catch {}
+      // Populate "Typ" from existing reviewed reviews
+      try {
+        const typeSel = document.getElementById("typeSelect");
+        if (typeSel) {
+          const reviewed = (reviews || []).filter(r => (r?.comment && String(r.comment).trim()) || (r?.rating != null));
+          const types = Array.from(
+            new Set(
+              reviewed
+                .map(r => (r?.restaurant_type || "").trim())
+                .filter(Boolean)
+            )
+          ).sort((a, b) => a.localeCompare(b, "sv"));
+      
+          // rebuild options (keep first "Alla")
+          typeSel.innerHTML = `<option value="">Typ: Alla</option>` +
+            types.map(t => `<option value="${t}">${t}</option>`).join("");
+        }
+      } catch (e) {
+        console.warn("[RR] render type options failed", e);
+      }
+
       setHidden(statusArea, true);
     } catch (e) {
       const msg = e?.message || "Kunde inte hämta recensioner";
