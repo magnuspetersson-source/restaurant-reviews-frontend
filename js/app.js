@@ -7,7 +7,20 @@ window.__RR_APP_VERSION__ = "app.js @ 2025-12-16 layout-A 3-col panel";
 function ensureAppMarkup() {
   const root = document.getElementById("app");
   if (!root) throw new Error("Missing #app root");
-  if (root.querySelector("#sortSelect")) return;
+  if (root.querySelector("#sortSelect")) {
+    // If markup already exists, still ensure #resultsMeta is present
+    if (!root.querySelector("#resultsMeta")) {
+      const brand = root.querySelector(".brand");
+      if (brand) {
+        const meta = document.createElement("div");
+        meta.className = "brand__sub";
+        meta.id = "resultsMeta";
+        meta.textContent = "…";
+        brand.appendChild(meta);
+      }
+    }
+    return;
+  }
 
   root.innerHTML = `
     <div class="app">
@@ -207,6 +220,25 @@ function __rrMarkersKey(reviews) {
       meBtn.classList.toggle("is-active", on);
       meBtn.setAttribute("aria-pressed", on ? "true" : "false");
     }
+  }
+
+  // --- Squarespace header offset (mobile panel must start below site header) ---
+  function updateSquarespaceHeaderOffset() {
+    const root = document.getElementById("app");
+    if (!root) return;
+  
+    const header =
+      document.querySelector("header.Header") ||
+      document.querySelector(".Header") ||
+      document.querySelector("#header") ||
+      document.querySelector("header");
+  
+    const h = header
+      ? Math.max(0, Math.round(header.getBoundingClientRect().height))
+      : 0;
+  
+    // Expose to CSS
+    root.style.setProperty("--rr-header-offset", `${h}px`);
   }
 
   // ---------------- Helpers ----------------
@@ -487,10 +519,17 @@ function __rrMarkersKey(reviews) {
     const statusArea = qs("#statusArea");
     statusArea.textContent = "Laddar recensioner…";
     setHidden(statusArea, false);
+    // Also reflect loading state in the top meta (so users don't only see "Laddar…" forever)
+    qs("#resultsMeta") && (qs("#resultsMeta").textContent = "Laddar…");
 
     try {
       const reviews = await window.RR_API.getReviews();
       actions.setReviews(reviews);
+      
+      // Update top meta immediately (don’t rely on render timing)
+      const reviewedCount = (reviews || []).filter(isReviewed).length;
+      const meta = qs("#resultsMeta");
+    if (meta) meta.textContent = `${reviewedCount} recensioner`;
 
       // Populate "Typ" from existing reviewed reviews
       try {
@@ -695,6 +734,13 @@ function __rrMarkersKey(reviews) {
   // ---------------- Init ----------------
   async function init() {
     ensureAppMarkup();
+    // Make sure panel never hides behind Squarespace header (esp. on mobile)
+    updateSquarespaceHeaderOffset();
+    window.addEventListener("resize", updateSquarespaceHeaderOffset, { passive: true });
+    window.addEventListener("orientationchange", updateSquarespaceHeaderOffset, { passive: true });
+    // If Squarespace does late layout, re-check after a tick too
+    setTimeout(updateSquarespaceHeaderOffset, 250);
+    setTimeout(updateSquarespaceHeaderOffset, 1200);
 
     wireTopbar();
     wirePanelClose();

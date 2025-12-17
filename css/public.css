@@ -636,6 +636,12 @@ body{ margin:0; }
 /* =========================================================
    Responsive
    ========================================================= */
+/* Panel under Squarespace header (set via app.js: --rr-header-offset) */
+#app{
+  --rr-header-offset: 0px;
+}
+
+
 @media (max-width: 980px){
   #app .main,
   #app .main.has-panel{
@@ -660,7 +666,11 @@ body{ margin:0; }
   /* Panel is overlay on mobile */
   #app #reviewPanel{
     position: fixed;
-    inset: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: var(--rr-header-offset, 0px);
+    height: calc(100dvh - var(--rr-header-offset, 0px));
     z-index: 9999;
     overflow: auto;
     transform: translateY(10px);
