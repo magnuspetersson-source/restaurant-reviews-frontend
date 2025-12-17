@@ -2,10 +2,6 @@
 // Requires: RR_DOM, RR_STATE, RR_API, RR_MAP, RR_MARKERS, RR_LIST (or RR_UI_LIST), RR_UI_PANEL
 // Optional: RR_UI_COMMENTS, RR_UI_MODAL
 
-console.log(
-  "%cRR app.js LOADED — build 2025-12-16 layout-A",
-  "background:#7aa7ff;color:#000;padding:4px;font-weight:bold"
-);
 window.__RR_APP_VERSION__ = "app.js @ 2025-12-16 layout-A 3-col panel";
 
 function ensureAppMarkup() {
@@ -79,7 +75,7 @@ function ensureAppMarkup() {
           <div class="mapHint" id="mapHint" hidden></div>
         </section>
 
-        <aside class="panel" id="reviewPanel" aria-label="Detaljer" aria-hidden="true" style="display:none">
+        <aside class="panel" id="reviewPanel" aria-label="Detaljer" aria-hidden="true">
           <div class="panel__header">
             <button class="iconBtn" id="panelCloseBtn" aria-label="Stäng" type="button">✕</button>
             <div class="panel__title" id="panelTitle"></div>
@@ -146,6 +142,12 @@ function ensureAppMarkup() {
 
 // Markers: rebuild only when list changes
 let __RR_MARKERS_KEY = "";
+let __RR_LIST_KEY = "";
+let __RR_SELECTED_ID = null;
+let __RR_PREV_OPEN = false;
+let __RR_LAST_HIGHLIGHTED_ID = null;
+let __RR_PANEL_RENDER_SCHEDULED = false;
+
 function __rrMarkersKey(reviews) {
   return (reviews || []).map(r => `${r.id}:${r.restaurant_lat}:${r.restaurant_lng}`).join("|");
 }
@@ -427,21 +429,17 @@ function __rrMarkersKey(reviews) {
 
   // Close is delegated (capture) so it always works even if DOM moves
   function wirePanelClose() {
-    document.addEventListener("pointerdown", (e) => {
-      const btn = e.target.closest("#panelCloseBtn");
-      if (!btn) return;
-      e.preventDefault();
-      e.stopPropagation();
-      selectReview(null, "ui");
-    }, true);
-
-    document.addEventListener("click", (e) => {
-      const btn = e.target.closest("#panelCloseBtn");
-      if (!btn) return;
-      e.preventDefault();
-      e.stopPropagation();
-      selectReview(null, "ui");
-    }, true);
+    document.addEventListener(
+      "click",
+      (e) => {
+        const btn = e.target.closest("#panelCloseBtn");
+        if (!btn) return;
+        e.preventDefault();
+        e.stopPropagation();
+        selectReview(null, "ui");
+      },
+      true
+    );
   }
 
   function wireMobileToggle() {
@@ -524,31 +522,45 @@ function __rrMarkersKey(reviews) {
     }
   }
 
+  function ensureMapVisible() {
+    if (!window.RR_MAP?.getMap) return;
+    const map = window.RR_MAP.getMap();
+    if (!map || !window.google?.maps?.event) return;
+  
+    // Kör i nästa frame så layouten är klar
+    requestAnimationFrame(() => {
+      google.maps.event.trigger(map, "resize");
+    });
+  }
+
   // ---------------- Render ----------------
   function render(s) {
+    const mqMobile = window.matchMedia("(max-width: 980px)");
+    const isMobile = mqMobile.matches;
     const list = getListForRender(s);
     const listWithDistance = withDistance(list);
 
-    // List
+	// List
+    const selectedId = s?.ui?.selectedReviewId ?? null;
+    
+    // list key (id + sort/filter-effekter + distance mode + ev userpos)
+    const listKey = listWithDistance.map(r => `${r.id}:${r._distance_km ?? ""}`).join("|");
+    
     const listUI = window.RR_UI_LIST || window.RR_LIST;
-    if (listUI?.renderList) {
-      listUI.renderList(listWithDistance, s.ui.selectedReviewId, (id, source) => {
-        selectReview(id, source || "list");
-      });
+    
+    if (listKey !== __RR_LIST_KEY) {
+      __RR_LIST_KEY = listKey;
+      listUI?.renderList?.(listWithDistance, selectedId, (id, source) => selectReview(id, source || "list"));
+    } else if (selectedId !== __RR_SELECTED_ID) {
+      // om din list-komponent stödjer “highlight” utan full rerender (om den finns)
+      listUI?.highlightSelected?.(selectedId);
     }
-
-    // Markers (rebuild only when list changes)
-    if (window.RR_MAP?.getMap?.() && window.google && google.maps && window.RR_MARKERS?.renderMarkers) {
-      const key = __rrMarkersKey(listWithDistance);
-      if (key !== __RR_MARKERS_KEY) {
-        __RR_MARKERS_KEY = key;
-        window.RR_MARKERS.renderMarkers(listWithDistance, null, (id) => selectReview(id, "map"));
-      }
-      window.RR_MARKERS.highlightSelected?.(s.ui.selectedReviewId);
-    }
+    
+    __RR_SELECTED_ID = selectedId;
 
     // Review lookup
     const id = s?.ui?.selectedReviewId;
+    const wasOpen = __RR_PREV_OPEN;
     const review =
       getReviewByIdSafe(s, id) ||
       (s?.data?.byId ? (s.data.byId[id] || s.data.byId[String(id)]) : null) ||
@@ -589,7 +601,7 @@ function __rrMarkersKey(reviews) {
     const panelEl = document.getElementById("reviewPanel");
     if (panelEl) {
       panelEl.setAttribute("aria-hidden", open ? "false" : "true");
-      panelEl.style.setProperty("display", open ? "block" : "none", "important");
+      panelEl.classList.toggle("is-open", open);
 
       // In-page layout A: toggle third column on main grid
       const mainEl = document.getElementById("mainGrid") || document.querySelector("#app .main");
@@ -597,8 +609,59 @@ function __rrMarkersKey(reviews) {
 
       // Render content AFTER visibility set (and never crash render loop)
       if (open) {
-        try { window.RR_UI_PANEL?.renderPanel?.(reviewForPanel); }
-        catch (e) { console.error("[RR] RR_UI_PANEL.renderPanel crashed:", e); }
+        // Defer heavy DOM work to next frame to keep INP low
+        if (!__RR_PANEL_RENDER_SCHEDULED) {
+          __RR_PANEL_RENDER_SCHEDULED = true;
+          requestAnimationFrame(() => {
+            __RR_PANEL_RENDER_SCHEDULED = false;
+            try { window.RR_UI_PANEL?.renderPanel?.(reviewForPanel); }
+            catch (e) { console.error("[RR] RR_UI_PANEL.renderPanel crashed:", e); }
+          });
+        }
+      }
+    }
+    
+    // Mobile (do this early so close paints ASAP)
+    applyMobileMode(s.ui.viewMode || "list", open);
+    
+    // If map just became visible, force Google Maps resize
+    if (!open && (!isMobile || s.ui.viewMode === "map")) {
+      ensureMapVisible();
+    }
+
+    // Markers (rebuild only when list changes)
+    if (window.RR_MAP?.getMap?.() && window.google && google.maps && window.RR_MARKERS?.renderMarkers) {
+      const key = __rrMarkersKey(listWithDistance);
+      if (key !== __RR_MARKERS_KEY) {
+        __RR_MARKERS_KEY = key;
+        window.RR_MARKERS.renderMarkers(listWithDistance, null, (id) => selectReview(id, "map"));
+      }
+
+      const nextId = s?.ui?.selectedReviewId ?? null;
+
+      // ✅ INP-fix: när vi stänger panelen, skjut highlight-reset till nästa frame
+      if (wasOpen && !open) {
+        requestAnimationFrame(() => {
+          try { window.RR_MARKERS.highlightSelected?.(null); } catch {}
+          __RR_LAST_HIGHLIGHTED_ID = null;
+        });
+      } else if (nextId !== __RR_LAST_HIGHLIGHTED_ID) {
+        // Diffad highlight: uppdatera bara vid byte
+        if (__RR_LAST_HIGHLIGHTED_ID != null) {
+          try {
+            // Om highlightSelected stödjer (nextId, prevId) går det snabbare,
+            // annars fall back till highlightSelected(null).
+            window.RR_MARKERS.highlightSelected?.(null, __RR_LAST_HIGHLIGHTED_ID);
+          } catch {
+            try { window.RR_MARKERS.highlightSelected?.(null); } catch {}
+          }
+        }
+
+        if (nextId != null) {
+          try { window.RR_MARKERS.highlightSelected?.(nextId); } catch {}
+        }
+
+        __RR_LAST_HIGHLIGHTED_ID = nextId;
       }
     }
 
@@ -612,8 +675,11 @@ function __rrMarkersKey(reviews) {
         (data.comments && (data.comments[rid] || data.comments[String(rid)])) ||
         (Array.isArray(data.comments) ? data.comments : []) ||
         [];
-    
-      window.RR_UI_COMMENTS.renderComments(comments);
+
+      // Defer comments too (often lots of nodes)
+      requestAnimationFrame(() => {
+        window.RR_UI_COMMENTS.renderComments(comments);
+      });
     }
 
     // Slideshow images for fallback
@@ -623,12 +689,7 @@ function __rrMarkersKey(reviews) {
       gallery.dataset.images = JSON.stringify(imgs);
     }
 
-    // Meta
-    const meta = qs("#resultsMeta");
-    if (meta) meta.textContent = `${list.length} recensioner`;
-
-    // Mobile
-    applyMobileMode(s.ui.viewMode || "list", open);
+	__RR_PREV_OPEN = open;
   }
 
   // ---------------- Init ----------------

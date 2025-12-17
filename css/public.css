@@ -1,11 +1,9 @@
 /* =========================================================
    Restaurant Reviews (Public) — Layout A (List | Map | Panel)
-   Harmonized with Admin look:
-   - Rounded "card" background around the whole app
-   - Rounded map corners (like admin #rra-map)
-   - Lighter input fields (like admin inputs)
+   Clean + functional + visually consistent
    ========================================================= */
 
+/* ---------------- Tokens ---------------- */
 :root{
   --rr-gap: 14px;
   --rr-radius: 16px;
@@ -30,6 +28,9 @@
   /* outer spacing around the "card" */
   --rr-card-pad: 16px;
   --rr-card-margin-y: 16px;
+
+  /* panel fade background (match content card) */
+  --rr-content-bg: rgba(255,255,255,.92);
 }
 
 *{ box-sizing:border-box; }
@@ -43,8 +44,7 @@ body{ margin:0; }
 #app a:hover{ text-decoration:underline; }
 
 /* =========================================================
-   "Rounded background card" like admin .rra-card
-   (Admin uses rgba(255,255,255,.92) + border + radius)
+   App "rounded card" wrapper
    ========================================================= */
 #app .app{
   min-height: 100%;
@@ -57,17 +57,19 @@ body{ margin:0; }
   padding: var(--rr-card-pad);
   margin: var(--rr-card-margin-y) 0;
 
-  /* keep content inside rounded corners */
-  overflow: hidden;
+  overflow: hidden; /* keep rounded corners clean */
 }
 
-/* Topbar */
+/* =========================================================
+   Topbar
+   ========================================================= */
 #app .topbar{
   position: sticky;
   top: 0;
   z-index: 5;
   background: transparent;
-  padding: 6px 0 12px 0; /* inside the card */
+
+  padding: 6px 0 12px 0;
   display:flex;
   gap: 14px;
   align-items:flex-start;
@@ -85,7 +87,7 @@ body{ margin:0; }
   align-items:center;
 }
 
-/* Lighter fields (admin-like) */
+/* Fields */
 #app .control{
   background: var(--rr-field-bg);
   border: 1px solid var(--rr-field-border);
@@ -100,6 +102,13 @@ body{ margin:0; }
 
 /* Distance toggle */
 #app .distanceToggle{ display:flex; gap:8px; align-items:center; }
+#app .distanceLabel{
+  font-size: 13px;
+  opacity: .75;
+  margin-right: 6px;
+  align-self: center;
+  white-space: nowrap;
+}
 #app .rr-toggle{ cursor:pointer; }
 #app .rr-toggle.is-active{
   border-color: var(--rr-border-strong);
@@ -127,12 +136,15 @@ body{ margin:0; }
 
 /* =========================================================
    Layout A: main grid
+   - Keep panel anchored to column 3 always (prevents "bottom-left")
+   - Column 3 is 0px when panel is closed
    ========================================================= */
 #app .main{
   flex: 1;
   min-height: 0;
   display:grid;
-  grid-template-columns: 420px 1fr;
+
+  grid-template-columns: 420px 1fr 0px;
   gap: var(--rr-gap);
 }
 
@@ -151,9 +163,11 @@ body{ margin:0; }
   padding-right: var(--rr-gap);
 }
 
-/* List */
+/* =========================================================
+   List
+   ========================================================= */
 #app .list{
-  padding: 0; /* card already has padding */
+  padding: 0;
   display:flex;
   flex-direction:column;
   gap:10px;
@@ -212,20 +226,23 @@ body{ margin:0; }
 }
 
 /* =========================================================
-   Map: rounded corners like admin #rra-map
-   (border-radius + overflow hidden on the container)
+   Map
    ========================================================= */
 #app #colMap{
   border-radius: 0.75rem;
   border: 1px solid rgba(0,0,0,0.08);
   overflow: hidden;
   background: rgba(255,255,255,.80);
+
+  /* optional: feels nice on desktop */
+  aspect-ratio: 1 / 1;
+  min-height: var(--rr-map-min-h);
 }
 
-/* Make sure map fills and respects rounding */
-#app #colMap,
+/* Ensure the actual map fills the container */
 #app #map{
-  min-height: var(--rr-map-min-h);
+  height: 100%;
+  min-height: inherit;
 }
 #app .map{
   position:absolute;
@@ -247,32 +264,70 @@ body{ margin:0; }
 }
 
 /* =========================================================
-   Panel (3rd column): optionally rounded right side too
+   Panel (3rd column)
+   - anchored to grid col 3 always
+   - visibility controlled via .is-open (not display)
    ========================================================= */
 #app #reviewPanel{
+  grid-column: 3;
+  grid-row: 1;
+
   position: relative;
   width: 100%;
   height: 100%;
+
   background: rgba(255,255,255,.95);
   border: 1px solid rgba(0,0,0,0.08);
   border-radius: 0.75rem;
+
   overflow: hidden;
 
   display:flex;
   flex-direction:column;
+
+  /* Closed by default (no layout shift) */
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(6px);
+  transition: opacity 160ms ease, transform 160ms ease, visibility 0s linear 160ms;
+  will-change: opacity, transform;
 }
 
-/* Panel header */
+/* Open */
+#app #reviewPanel.is-open{
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: none;
+  transition: opacity 160ms ease, transform 160ms ease, visibility 0s;
+}
+
+/* Panel header (single source of truth) */
 #app .panel__header{
   position: sticky;
   top: 0;
   z-index: 2;
   background: inherit;
-  padding: 14px 14px 10px 14px;
+
   border-bottom: 1px solid rgba(0,0,0,.08);
+
+  padding: 14px 14px 10px 14px;
+
+  /* layout for close btn + right meta */
+  position: relative;
+  padding-left: 54px;   /* room for close button */
+  padding-right: 260px; /* room for right meta stack */
+  min-height: 92px;     /* avoids overlap */
 }
 
-#app .panel__title{ font-weight:700; font-size:18px; margin-top:6px; }
+#app #panelCloseBtn{
+  position: absolute;
+  top: 14px;
+  left: 14px;
+}
+
+#app .panel__title{ font-weight:800; line-height: 1.15; font-size: 18px; margin-top: 0; }
 #app .panel__meta{
   opacity:.75;
   font-size:13px;
@@ -282,26 +337,35 @@ body{ margin:0; }
   flex-wrap:wrap;
 }
 
-#app .panel__body{
-  padding: 14px;
-  overflow:auto;
-  height:100%;
-}
-/* Panel header: reserve space and show meta in top-right */
-#app .panel__header{
-  position: sticky;
-  top: 0;
-  padding-right: 160px; /* space for top-right meta */
-}
-
+/* Right meta stack (panel.js uses these classes) */
 #app .panel__metaTop{
   position: absolute;
   top: 14px;
   right: 14px;
-  font-size: 13px;
-  opacity: .75;
-  white-space: nowrap;
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 240px;
 }
+#app .pm-title{
+  font-weight: 800;
+  line-height: 1.15;
+  font-size: 18px;
+  opacity: 1;
+}
+#app .pm-row1{
+  font-size: 16px;
+  line-height: 1.1;
+  letter-spacing: .6px;
+  opacity: .95;
+}
+#app .pm-row2{
+  font-size: 13px;
+  line-height: 1.2;
+  opacity: .75;
+}
+
 /* Buttons */
 #app .iconBtn{
   background: rgba(255,255,255,.95);
@@ -312,7 +376,16 @@ body{ margin:0; }
 }
 #app .iconBtn:hover{ border-color: rgba(0,0,0,.35); }
 
-/* Gallery */
+#app .panel__body{
+  padding: 14px;
+  padding-top: 16px;
+  overflow:auto;
+  height:100%;
+}
+
+/* =========================================================
+   Gallery
+   ========================================================= */
 #app .gallery{
   display:grid;
   grid-template-columns: repeat(3, 1fr);
@@ -337,14 +410,22 @@ body{ margin:0; }
   display:block;
 }
 
-/* Content (Quill HTML) */
+/* =========================================================
+   Content (Quill HTML)
+   ========================================================= */
 #app .content{
   border:1px solid rgba(0,0,0,.10);
-  background: rgba(255,255,255,.92);
+  background: var(--rr-content-bg);
   border-radius: var(--rr-radius);
   padding:12px;
   margin-bottom:16px;
+
+  /* protect against Squarespace themes using light text */
+  color: rgba(0,0,0,.88);
 }
+#app .content *{ color: inherit; }
+#app .content a{ color: rgba(0,0,0,.88); text-decoration: underline; }
+
 #app .content :first-child{ margin-top:0; }
 #app .content p{ line-height:1.6; }
 #app .content h1,#app .content h2,#app .content h3{ margin:.6em 0 .35em; }
@@ -357,22 +438,55 @@ body{ margin:0; }
   background: rgba(0,0,0,.03);
   border-radius: 12px;
 }
-/* === FIX: Quill/content text can inherit white from Squarespace theme === */
-#app .content{
-  color: rgba(0,0,0,.88);
+
+/* Collapsed review text (5 lines) */
+#app #panelContent{
+  position: relative;
+}
+#app #panelContent.is-collapsed{
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  overflow: hidden;
+}
+#app #panelContent.is-collapsed::after{
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3.2em;
+  pointer-events: none;
+
+  background: linear-gradient(
+    to bottom,
+    rgba(255,255,255,0),
+    var(--rr-content-bg) 70%,
+    var(--rr-content-bg) 100%
+  );
 }
 
-#app .content *{
-  color: inherit;
-}
+/* Read more button */
+#app .readMoreBtn{
+  margin-top: 10px;
+  margin-left: auto;
+  display: inline-flex;
+  align-self: flex-end;
 
-#app .content a{
-  color: rgba(0,0,0,.88);
-  text-decoration: underline;
+  background: rgba(0,0,0,.06);
+  border: 1px solid rgba(0,0,0,.18);
+  border-radius: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-weight: 600;
 }
+#app .readMoreBtn:hover{ border-color: rgba(0,0,0,.35); }
+#app .readMoreBtn[hidden]{ display:none !important; }
 
-/* Comments */
-#app .comments{ margin-top:14px; }
+/* =========================================================
+   Comments
+   ========================================================= */
+#app .comments{ margin-top:14px; color: rgba(0,0,0,.88); }
 #app .comments__header{ display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
 #app .comments__title{ font-weight:700; }
 #app .comments__disclaimer{ font-size:12px; opacity:.75; }
@@ -383,6 +497,7 @@ body{ margin:0; }
   background: rgba(255,255,255,.92);
   border-radius: var(--rr-radius);
   padding:10px;
+  color: rgba(0,0,0,.88);
 }
 #app .comment__top{
   display:flex;
@@ -399,11 +514,6 @@ body{ margin:0; }
   background: rgba(255,255,255,.92);
   border-radius: var(--rr-radius);
   padding:12px;
-}
-
-#app .comments, 
-#app .comment, 
-#app .commentForm{
   color: rgba(0,0,0,.88);
 }
 
@@ -437,7 +547,9 @@ body{ margin:0; }
 #app .commentForm__actions{ display:flex; align-items:center; gap:10px; }
 #app .formNote{ opacity:.75; font-size:12px; }
 
-/* Modal (slideshow) — keep simple */
+/* =========================================================
+   Modal (slideshow)
+   ========================================================= */
 #app .modal{
   position: fixed;
   inset: 0;
@@ -499,17 +611,31 @@ body{ margin:0; }
 }
 #app .navBtn:hover{ border-color: rgba(0,0,0,.35); }
 
-#app .modal__caption{ padding: 0 12px 8px 12px; opacity:.75; font-size: 13px; }
-#app .modal__counter{ padding: 0 12px 10px 12px; opacity:.7; font-size: 12px; }
+/* single source of truth for caption/counter */
+#app .modal__caption{
+  padding: 0 12px 10px 12px;
+  opacity: .95;
+  font-size: 18px;
+  line-height: 1.35;
+}
+#app .modal__counter{
+  padding: 0 12px 10px 12px;
+  opacity:.7;
+  font-size: 12px;
+}
 
-/* InfoWindow */
+/* =========================================================
+   InfoWindow
+   ========================================================= */
 #app .rr-iw{ font-size: 13px; line-height: 1.35; }
 #app .rr-iw__title{ font-weight: 700; margin-bottom: 4px; }
 #app .rr-iw__meta{ opacity:.85; display:flex; gap:8px; align-items:baseline; margin-bottom: 4px; }
 #app .rr-iw__sub{ opacity:.75; margin-bottom: 6px; }
 #app .rr-iw__link a{ font-weight: 600; }
 
-/* Responsive */
+/* =========================================================
+   Responsive
+   ========================================================= */
 @media (max-width: 980px){
   #app .main,
   #app .main.has-panel{
@@ -520,164 +646,23 @@ body{ margin:0; }
   #app .mobileToggle{ display:flex; }
   #app .row{ grid-template-columns: 1fr; }
 
-  #app #colMap, #app #map{ min-height: var(--rr-map-min-h-mobile); }
+  #app #colMap{
+    min-height: var(--rr-map-min-h-mobile);
+    aspect-ratio: auto; /* on mobile, let height rule */
+  }
 
-  /* When panel open: hide list/map (matches your app.js behavior) */
+  /* When panel open: hide list/map (matches app.js behavior) */
   #app .main.has-panel #colList,
   #app .main.has-panel #colMap{
     display: none !important;
   }
 
-  #app .main.has-panel #reviewPanel{
-    display: block !important;
+  /* Panel is overlay on mobile */
+  #app #reviewPanel{
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    overflow: auto;
+    transform: translateY(10px);
   }
-}
-/* Bigger slideshow caption (override old 13px rule) */
-#app .modal__caption{
-  padding: 0 12px 10px 12px;
-  opacity: .95;
-  font-size: 18px;
-  line-height: 1.35;
-}
-
-/* Panel header: make close button top-left and meta stack top-right */
-#app .panel__header{
-  position: sticky;
-  top: 0;
-  position: relative;      /* needed for absolute children */
-  padding-left: 54px;      /* space for close button */
-  padding-right: 260px;    /* space for right meta stack */
-}
-
-/* Close button: fixed spot */
-#app #panelCloseBtn{
-  position: absolute;
-  top: 14px;
-  left: 14px;
-}
-
-/* Right meta stack */
-#app .panel__metaTop{
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  text-align: right;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-width: 240px;
-}
-
-#app .pm-title{
-  font-weight: 800;
-  line-height: 1.15;
-  font-size: 18px;
-  opacity: 1;
-}
-
-#app .pm-row1{
-  font-size: 16px;
-  line-height: 1.1;
-  letter-spacing: .6px;
-  opacity: .95;
-}
-
-#app .pm-row2{
-  font-size: 13px;
-  line-height: 1.2;
-  opacity: .75;
-}
-
-/* Make panel content start below the sticky header so it never overlaps */
-#app #reviewPanel .panel__body{
-  padding-top: 16px;
-}
-
-/* If header meta block is tall, reserve more space */
-#app #reviewPanel .panel__header{
-  min-height: 92px; /* room for title + two meta rows */
-}
-
-/* Map column tries to be as tall as it is wide (square), but keeps a min height */
-#app #colMap{
-  aspect-ratio: 1 / 1;
-  min-height: var(--rr-map-min-h);
-}
-
-/* Ensure the actual map fills the container */
-#app #map{
-  height: 100%;
-  min-height: inherit;
-}
-
-#app .distanceLabel{
-  font-size: 13px;
-  opacity: .75;
-  margin-right: 6px;
-  align-self: center;
-  white-space: nowrap;
-}
-
-/* Collapsed review text (5 lines) */
-#app #panelContent.is-collapsed{
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 5;
-  overflow: hidden;
-}
-
-/* Read more button */
-#app .readMoreBtn{
-  margin-top: 10px;
-  background: rgba(0,0,0,.06);
-  border: 1px solid rgba(0,0,0,.18);
-  border-radius: 12px;
-  padding: 10px 12px;
-  cursor: pointer;
-  font-weight: 600;
-}
-#app .readMoreBtn:hover{ border-color: rgba(0,0,0,.35); }
-#app .readMoreBtn[hidden]{ display:none !important; }
-
-#app .readMoreBtn{
-  margin-top: 10px;
-  margin-left: auto;
-  display: inline-flex;
-  align-self: flex-end;
-}
-
-/* =========================================================
-   Review text collapse + fade (no inner wrapper)
-   ========================================================= */
-
-#app #panelContent{
-  position: relative;
-}
-
-/* Clamp to ~5 lines */
-#app #panelContent.is-collapsed{
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 5;
-  overflow: hidden;
-}
-
-/* Fade overlay at bottom when collapsed */
-#app #panelContent.is-collapsed::after{
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-
-  height: 3.2em; /* controls fade height */
-  pointer-events: none;
-
-  /* Match panel content background */
-  background: linear-gradient(
-    to bottom,
-    rgba(255,255,255,0),
-    rgba(255,255,255,.92) 70%,
-    rgba(255,255,255,.92) 100%
-  );
 }
