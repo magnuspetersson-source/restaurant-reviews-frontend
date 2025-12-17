@@ -638,3 +638,46 @@ body{ margin:0; }
 }
 #app .readMoreBtn:hover{ border-color: rgba(0,0,0,.35); }
 #app .readMoreBtn[hidden]{ display:none !important; }
+
+#app .readMoreBtn{
+  margin-top: 10px;
+  margin-left: auto;
+  display: inline-flex;
+  align-self: flex-end;
+}
+
+/* =========================================================
+   Review text collapse + fade (no inner wrapper)
+   ========================================================= */
+
+#app #panelContent{
+  position: relative;
+}
+
+/* Clamp to ~5 lines */
+#app #panelContent.is-collapsed{
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  overflow: hidden;
+}
+
+/* Fade overlay at bottom when collapsed */
+#app #panelContent.is-collapsed::after{
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+
+  height: 3.2em; /* controls fade height */
+  pointer-events: none;
+
+  /* Match panel content background */
+  background: linear-gradient(
+    to bottom,
+    rgba(255,255,255,0),
+    rgba(255,255,255,.92) 70%,
+    rgba(255,255,255,.92) 100%
+  );
+}
