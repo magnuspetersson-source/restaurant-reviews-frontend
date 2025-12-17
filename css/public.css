@@ -617,3 +617,24 @@ body{ margin:0; }
   align-self: center;
   white-space: nowrap;
 }
+
+/* Collapsed review text (5 lines) */
+#app #panelContent.is-collapsed{
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  overflow: hidden;
+}
+
+/* Read more button */
+#app .readMoreBtn{
+  margin-top: 10px;
+  background: rgba(0,0,0,.06);
+  border: 1px solid rgba(0,0,0,.18);
+  border-radius: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+#app .readMoreBtn:hover{ border-color: rgba(0,0,0,.35); }
+#app .readMoreBtn[hidden]{ display:none !important; }

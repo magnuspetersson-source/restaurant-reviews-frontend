@@ -101,26 +101,54 @@
     
     // We keep the left title, but we move all “meta” to top-right now
     metaEl.textContent = "";
-        
-    // All meta now lives top-right
-    metaEl.textContent = "";
     
     // --- Content (review text)
     // Your data currently has review html in comment_html (and sometimes comment)
     const html = review.comment_html || review.comment || "";
     contentEl.innerHTML = html ? String(html) : "<p><em>Ingen recensionstext.</em></p>";
+    
+    // --- "Läs mer…" collapse/expand (5 lines)
+    let btn = document.getElementById("panelReadMoreBtn");
+    if (!btn) {
+      btn = document.createElement("button");
+      btn.id = "panelReadMoreBtn";
+      btn.type = "button";
+      btn.className = "readMoreBtn";
+      btn.textContent = "Läs mer…";
+      contentEl.insertAdjacentElement("afterend", btn);
+    
+      btn.addEventListener("click", () => {
+        const collapsed = contentEl.classList.toggle("is-collapsed");
+        btn.textContent = collapsed ? "Läs mer…" : "Visa mindre";
+      });
+    }
+    
+    // reset collapsed on each review render
+    contentEl.classList.add("is-collapsed");
+    btn.textContent = "Läs mer…";
+    btn.hidden = true;
+    
+    // show button only if content actually overflows when collapsed
+    requestAnimationFrame(() => {
+      // If scrollHeight > clientHeight, it means we truncated
+      btn.hidden = !(contentEl.scrollHeight > contentEl.clientHeight + 2);
+    });
 
     // --- Gallery thumbs
     if (galleryEl) {
       galleryEl.innerHTML = "";
       const imgs = Array.isArray(review.images) ? review.images : [];
-      imgs.forEach((img) => {
+      imgs.forEach((img, i) => {
         const d = document.createElement("div");
         d.className = "gallery__item";
+        d.setAttribute("data-index", String(i));   // ✅ key fix
+      
         const im = document.createElement("img");
         im.src = img.url;
         im.alt = img.caption || "";
+        im.setAttribute("data-index", String(i)); // (belt & suspenders)
         d.appendChild(im);
+      
         galleryEl.appendChild(d);
       });
     }
