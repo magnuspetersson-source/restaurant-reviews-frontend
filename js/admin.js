@@ -467,10 +467,10 @@
 
     const request = {
       location: { lat: HOME_LAT, lng: HOME_LNG },
-      radius: 3000,
-      type: "restaurant",
+      rankBy: google.maps.places.RankBy.DISTANCE,
+      type: "restaurant", // (eller keyword/name om du vill styra hårdare)
     };
-
+    
     setPlacesStatus("Kontaktar Google Places…");
     placesService.nearbySearch(request, (results, status) => {
       if (status !== google.maps.places.PlacesServiceStatus.OK || !results) {
