@@ -415,8 +415,9 @@
     initImageUpload();
     initAdminCommentsUI();
     initPlaceAutocomplete();
-	loadExclusions().finally(() => loadReviews());
-	loadNearbyRestaurants();
+	loadExclusions()
+	  .then(loadReviews)
+	  .then(loadNearbyRestaurants);
   }
 
   function initQuillCommentEditor() {
@@ -588,7 +589,10 @@
           encodeURIComponent(HOME_LNG) +
           "&radius=" +
           encodeURIComponent(3000)
-      )
+      ),
+      {
+        headers: ADMIN_TOKEN ? { "x-admin-token": ADMIN_TOKEN } : {},
+      }
     )
       .then((r) => {
         if (!r.ok) throw new Error("places-nearby HTTP " + r.status);
