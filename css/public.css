@@ -31,6 +31,8 @@
 
   /* panel fade background (match content card) */
   --rr-content-bg: rgba(255,255,255,.92);
+  
+  --rr-map-max-h: 560px;
 }
 
 *{ box-sizing:border-box; }
@@ -706,4 +708,24 @@ body{ margin:0; }
   #app .modal__close{
     top: 12px;
   }
+}
+
+/* ==== RR: Map – single source of truth ==== */
+
+#app #colMap {
+  height: clamp(320px, 55vh, var(--rr-map-max-h));
+  max-height: var(--rr-map-max-h);
+  
+  align-self: flex-start;   /* stoppa grid-stretch */
+  overflow: hidden;         /* klipp kartan */
+  border-radius: 16px;
+
+  border: 1px solid rgba(0,0,0,0.08);
+  background: rgba(255,255,255,.80);
+}
+
+/* Själva kartan fyller alltid kortet */
+#app #map {
+  height: 100%;
+  width: 100%;
 }
