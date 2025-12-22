@@ -34,6 +34,7 @@
   const ICON_REVIEWED = "http://maps.google.com/mapfiles/ms/icons/green-dot.png";
   const ICON_UNREVIEWED = "http://maps.google.com/mapfiles/ms/icons/red-dot.png";
   const ICON_NEAREST_UNREVIEWED = "http://maps.google.com/mapfiles/ms/icons/blue-dot.png";
+  const ICON_EXCLUDED = "http://maps.google.com/mapfiles/ms/icons/grey-dot.png";
 
   // ======= STATE =======
   let map;
@@ -52,6 +53,12 @@
   let nearestUnreviewedPlaceId = null;
   let nearbyLoaded = false;
   let selectedMarker = null;
+  let nearbyReviewedCount = 0;
+  let nearbyExcludedCount = 0;
+  
+  // Exkluderingar (admin-only)
+  let excludedSet = new Set();
+  const ADMIN_TOKEN = typeof cfg.adminToken === "string" ? cfg.adminToken : "";
 
   // Quill
   let quillComment = null;
@@ -108,6 +115,15 @@
                 <div id="rra-selected-name" class="rra-selected-name">
                   Ingen vald ännu.
                 </div>
+                <div style="display:flex; gap:0.5rem; margin-top:0.4rem;">
+                  <button type="button" id="rra-exclude-btn" class="rra-btn" style="font-size:0.8rem;">
+                    Exkludera
+                  </button>
+                  <button type="button" id="rra-unexclude-btn" class="rra-btn" style="font-size:0.8rem;">
+                    Ångra exkludering
+                  </button>
+                </div>
+                <div id="rra-exclude-status" class="rra-muted" style="margin-top:0.25rem;"></div>
               </div>
 
               <div class="rra-row">
@@ -268,6 +284,11 @@
   }
 
   // ======= HELPERS =======
+  function backendUrl(path) {
+    const base = (BACKEND_BASE_URL || "").replace(/\/$/, "");
+    return base + path;
+  }  
+  
   function loadCssOnce(href, id) {
     if (id && document.getElementById(id)) return;
     if ([...document.styleSheets].some(s => s.href === href)) return;
@@ -394,7 +415,8 @@
     initImageUpload();
     initAdminCommentsUI();
     initPlaceAutocomplete();
-    loadReviews();
+	loadExclusions().finally(() => loadReviews());
+	loadNearbyRestaurants();
   }
 
   function initQuillCommentEditor() {
@@ -428,12 +450,8 @@
       },
     });
 
-    if (google.maps.places) {
-      placesService = new google.maps.places.PlacesService(map);
-      setPlacesStatus("Försöker hämta restauranger från Google Places…");
-    } else {
-      setPlacesStatus("Google Places-biblioteket kunde inte laddas.");
-    }
+    setPlacesStatus("Kartan redo.")
+    
   }
 
   function clearReviewMarkers() {
@@ -470,30 +488,148 @@
     placeMarkers = [];
   }
 
-  function loadNearbyRestaurants() {
-    if (!map || !placesService || nearbyLoaded) return;
-    nearbyLoaded = true;
-
-    const request = {
-      location: { lat: HOME_LAT, lng: HOME_LNG },
-      rankBy: google.maps.places.RankBy.DISTANCE,
-      type: "restaurant", // (eller keyword/name om du vill styra hårdare)
-    };
-    
-    setPlacesStatus("Kontaktar Google Places…");
-    placesService.nearbySearch(request, (results, status) => {
-      if (status !== google.maps.places.PlacesServiceStatus.OK || !results) {
-        setPlacesStatus("Google Places kunde inte hämta restauranger (status: " + status + ").");
-        return;
-      }
-
-      setPlacesStatus("Google Places laddade " + results.length + " restauranger i närheten.");
-      nearbyPlaces = results;
-      computeNearestUnreviewed();
-      renderPlaceMarkers();
-    });
+  async function loadExclusions() {
+    try {
+      const res = await fetch(backendUrl("/api/place-exclusions"), {
+        headers: ADMIN_TOKEN ? { "x-admin-token": ADMIN_TOKEN } : {},
+      });
+      if (!res.ok) throw new Error("place-exclusions HTTP " + res.status);
+      const rows = await res.json();
+      excludedSet = new Set((rows || []).map((x) => x.place_id).filter(Boolean));
+    } catch (e) {
+      console.warn("[admin] Could not load exclusions", e);
+      excludedSet = new Set();
+    }
   }
 
+  async function excludePlace(placeId, placeName) {
+    const reason = prompt("Varför exkludera? (valfritt)", "Inte en riktig restaurang") || "";
+    const res = await fetch(backendUrl("/api/place-exclusions"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(ADMIN_TOKEN ? { "x-admin-token": ADMIN_TOKEN } : {}),
+      },
+      body: JSON.stringify({ placeId, placeName, reason }),
+    });
+    if (!res.ok) throw new Error("exclude HTTP " + res.status);
+  }
+
+  async function unexcludePlace(placeId) {
+    const res = await fetch(
+      backendUrl("/api/place-exclusions?placeId=" + encodeURIComponent(placeId)),
+      {
+        method: "DELETE",
+        headers: ADMIN_TOKEN ? { "x-admin-token": ADMIN_TOKEN } : {},
+      }
+    );
+    if (!res.ok) throw new Error("unexclude HTTP " + res.status);
+  }
+
+  function getSelectedPlaceForExclusion() {
+    const p = selectedMarker && selectedMarker._place ? selectedMarker._place : null;
+    if (!p || !p.place_id) return null;
+    return p;
+  }
+
+  async function onExcludeSelectedPlace() {
+    const statusEl = document.getElementById("rra-exclude-status");
+    const p = getSelectedPlaceForExclusion();
+    if (!p) {
+      alert("Välj först en plats (klicka på en röd/grå pin).");
+      return;
+    }
+    if (!confirm(`Exkludera "${p.name}" från listan?`)) return;
+    try {
+      if (statusEl) statusEl.textContent = "Exkluderar...";
+      await excludePlace(p.place_id, p.name);
+      await loadExclusions();
+      nearbyLoaded = false;
+      loadNearbyRestaurants();
+      if (statusEl) statusEl.textContent = "Exkluderad.";
+    } catch (e) {
+      console.error(e);
+      if (statusEl) statusEl.textContent = "Kunde inte exkludera.";
+    }
+  }
+
+  async function onUnexcludeSelectedPlace() {
+    const statusEl = document.getElementById("rra-exclude-status");
+    const p = getSelectedPlaceForExclusion();
+    if (!p) {
+      alert("Välj först en plats (klicka på en grå pin).");
+      return;
+    }
+    if (!confirm(`Ångra exkludering av "${p.name}"?`)) return;
+    try {
+      if (statusEl) statusEl.textContent = "Ångrar...";
+      await unexcludePlace(p.place_id);
+      await loadExclusions();
+      nearbyLoaded = false;
+      loadNearbyRestaurants();
+      if (statusEl) statusEl.textContent = "Exkludering borttagen.";
+    } catch (e) {
+      console.error(e);
+      if (statusEl) statusEl.textContent = "Kunde inte ångra.";
+    }
+  }
+
+  function loadNearbyRestaurants() {
+    if (!map || nearbyLoaded) return;
+    nearbyLoaded = true;
+  
+    setPlacesStatus("Kontaktar backend (Google Places) …");
+  
+    fetch(
+      backendUrl(
+        "/api/places-nearby?lat=" +
+          encodeURIComponent(HOME_LAT) +
+          "&lng=" +
+          encodeURIComponent(HOME_LNG) +
+          "&radius=" +
+          encodeURIComponent(3000)
+      )
+    )
+      .then((r) => {
+        if (!r.ok) throw new Error("places-nearby HTTP " + r.status);
+        return r.json();
+      })
+      .then((data) => {
+        const placesAll = Array.isArray(data.places) ? data.places : [];
+      
+        nearbyReviewedCount = Number(data.reviewedCount || 0);
+        nearbyExcludedCount = Number(data.excludedCount || 0);
+      
+        // Hur många vi vill rendera totalt (där "10 nya" får plats)
+        const targetTotal = 10 + nearbyReviewedCount + nearbyExcludedCount;
+      
+        const places = placesAll.slice(0, targetTotal);
+      
+        // Synca exkluderingar från backend-flagg (bra vid första load)
+        excludedSet = new Set(placesAll.filter((p) => p.excluded).map((p) => p.place_id));
+      
+        nearbyPlaces = places.map((p) => ({
+          place_id: p.place_id,
+          name: p.name,
+          vicinity: p.address || "",
+          geometry: {
+            location: {
+              lat: () => p.lat,
+              lng: () => p.lng,
+            },
+          },
+          _reviewed: !!p.reviewed,
+          _excluded: !!p.excluded,
+        }));
+      
+        setPlacesStatus(
+          `Laddade ${places.length}/${placesAll.length} träffar (visar ${targetTotal} för att ha minst 10 nya).`
+        );
+      
+        computeNearestUnreviewed();
+        renderPlaceMarkers();
+      })
+  }
   function computeNearestUnreviewed() {
     let bestDist = Infinity;
     let bestPlaceId = null;
@@ -502,6 +638,7 @@
       if (!p.geometry || !p.geometry.location || !p.place_id) return;
       const reviewed = allReviews.some((r) => r.place_id === p.place_id);
       if (reviewed) return;
+      if (excludedSet.has(p.place_id) || p._excluded) return;
 
       const lat = p.geometry.location.lat();
       const lng = p.geometry.location.lng();
@@ -518,30 +655,44 @@
   function renderPlaceMarkers() {
     if (!map) return;
     clearPlaceMarkers();
-
+  
     nearbyPlaces.forEach((p) => {
       if (!p.geometry || !p.geometry.location) return;
-
+  
       const reviewed = allReviews.find((r) => r.place_id === p.place_id);
-      let icon = reviewed ? ICON_REVIEWED : ICON_UNREVIEWED;
-      if (p.place_id === nearestUnreviewedPlaceId && !reviewed) icon = ICON_NEAREST_UNREVIEWED;
-
+      const isExcluded = excludedSet.has(p.place_id) || p._excluded;
+  
+      let icon = reviewed ? ICON_REVIEWED : isExcluded ? ICON_EXCLUDED : ICON_UNREVIEWED;
+      if (p.place_id === nearestUnreviewedPlaceId && !reviewed && !isExcluded) {
+        icon = ICON_NEAREST_UNREVIEWED;
+      }
+  
+      // IMPORTANT: position måste vara LatLngLiteral (numbers), inte {lat: fn, lng: fn}
+      const loc = p.geometry.location;
+      const lat = typeof loc.lat === "function" ? loc.lat() : loc.lat;
+      const lng = typeof loc.lng === "function" ? loc.lng() : loc.lng;
+  
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        console.warn("[admin] Skipping place with invalid lat/lng", p.place_id, lat, lng, p);
+        return;
+      }
+  
       const marker = new google.maps.Marker({
         map,
-        position: p.geometry.location,
-        title: p.name,
+        position: { lat, lng },
+        title: p.name || "",
         icon,
       });
+  
       marker._baseIcon = icon;
-
       marker._place = p;
       marker._review = reviewed || null;
-
+  
       marker.addListener("click", () => onPlaceMarkerClick(marker));
       placeMarkers.push(marker);
     });
   }
-
+  
   function newEmptyReviewFromPlace(place, lat, lng, dist) {
     return normalizeReviewImages({
       place_id: place.place_id,
@@ -820,6 +971,11 @@
     if (saveBtn) saveBtn.addEventListener("click", onSaveReview);
     if (newBtn) newBtn.addEventListener("click", resetForm);
     if (deleteBtn) deleteBtn.addEventListener("click", onDeleteReview);
+
+    const exBtn = document.getElementById("rra-exclude-btn");
+    const unexBtn = document.getElementById("rra-unexclude-btn");
+    if (exBtn) exBtn.addEventListener("click", onExcludeSelectedPlace);
+    if (unexBtn) unexBtn.addEventListener("click", onUnexcludeSelectedPlace);    
   }
 
   async function onSaveReview() {
