@@ -8,10 +8,9 @@
       .replaceAll("'", "&#039;");
   }
 
-  function formatDateYYYYMMDD(created_at) {
-    if (!created_at) return "";
-    // created_at is usually ISO string; keep it skimmable like admin list
-    return String(created_at).slice(0, 10);
+  function formatDateYYYYMMDD(review) {
+    const d = review?.review_date || review?.created_at;
+    return d ? String(d).slice(0, 10) : "";
   }
 
   function formatStars(rating) {
@@ -56,7 +55,7 @@
 
       const name = r.place_name || "";
       const stars = formatStars(r.rating);
-      const date = formatDateYYYYMMDD(r.created_at);
+      const date = formatDateYYYYMMDD(r);
 
       const type = formatType(r.restaurant_type);
       const cost = formatCost(r.cost_level);

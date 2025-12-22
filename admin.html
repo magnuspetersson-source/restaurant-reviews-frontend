@@ -1,28 +1,103 @@
 <!doctype html>
 <html lang="sv">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Restaurant Reviews – Admin</title>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Restaurant Reviews – Admin</title>
 
-    <!-- Quill -->
-    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet" />
-    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+  <link rel="icon" href="data:," />
 
-    <!-- Admin CSS -->
-    <link rel="stylesheet" href="./css/admin.css" />
-  </head>
-  <body>
-    <!-- 🔴 DENNA ÄR OBLIGATORISK -->
-    <script src="/js/config.local.js"></script>
-    <!-- fallback om du vill: -->
-    <!-- <script src="/js/config.js"></script> -->
-    <script src="/js/admin.js"></script>
+  <script>
+    (function () {
+      const host = location.hostname;
+      const isSquarespace = host.includes("squarespace.com");
+      const isGithubPages = host === "magnuspetersson-source.github.io";
+      window.__RR_IS_LOCAL__ = !isSquarespace && !isGithubPages;
 
-    <!-- Konfig först -->
-    <script src="./js/config.js"></script>
+      console.log("[RR admin] host:", host, "isLocal:", window.__RR_IS_LOCAL__);
+    })();
+  </script>
 
-    <!-- All admin-logik -->
-    <script src="./js/admin.js"></script>
-  </body>
+  <!-- CSS: lokalt på localhost, annars GitHub -->
+  <script>
+    (function () {
+      const isLocal = !!window.__RR_IS_LOCAL__;
+      const v = isLocal ? ("?v=" + Date.now()) : "";
+      const gh = "https://magnuspetersson-source.github.io/restaurant-reviews-frontend";
+
+      // Om du har admin.css lokalt, använd den. Annars byt till /css/public.css
+      const href = isLocal
+        ? (location.origin + "/css/admin.css" + v)
+        : (gh + "/css/admin.css");
+
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = href;
+      document.head.appendChild(link);
+
+      console.log("[RR admin] CSS:", href);
+    })();
+  </script>
+
+  <!-- (Valfritt) local dev styles för läsbarhet -->
+  <script>
+    (function () {
+      if (!window.__RR_IS_LOCAL__) return;
+      const style = document.createElement("style");
+      style.textContent = `
+        body { background:#f2f2f2 !important; color:#111 !important; }
+        #restaurant-reviews-admin { background:#fff !important; min-height:100vh; }
+        h1,h2,h3,h4,h5,h6,p,span,div,li,label { color:#111 !important; }
+        button,.btn,.iconBtn { background:#eee !important; color:#111 !important; border:1px solid #ccc !important; }
+        input,textarea,select { background:#fff !important; color:#111 !important; border:1px solid #bbb !important; }
+      `;
+      document.head.appendChild(style);
+      console.log("[RR admin] Local dev styles active");
+    })();
+  </script>
+</head>
+
+<body>
+
+  <!-- OBS: admin.js kräver detta id -->
+  <div
+    id="restaurant-reviews-admin"
+    data-api-base="https://restaurant-reviews-backend-xi.vercel.app"
+  ></div>
+
+  <!-- Blockerande local config (endast lokalt) -->
+  <script>
+    (function () {
+      if (!window.__RR_IS_LOCAL__) return;
+      const v = Date.now();
+      document.write('<script src="' + location.origin + '/js/config.local.js?v=' + v + '"><\/script>');
+      console.log("[RR admin] Injected blocking config.local.js");
+    })();
+  </script>
+
+  <!-- JS: lokalt på localhost, annars GitHub -->
+  <script>
+    (function () {
+      const isLocal = !!window.__RR_IS_LOCAL__;
+      const ghBase = "https://magnuspetersson-source.github.io/restaurant-reviews-frontend";
+      const base = isLocal ? location.origin : ghBase;
+      const v = isLocal ? ("?v=" + Date.now()) : "";
+
+      // Admin-sidan är "monolitisk" (admin.js laddar Quill själv etc.)
+      const scripts = [
+        "/js/admin.js"
+      ];
+
+      for (const p of scripts) {
+        const s = document.createElement("script");
+        s.src = base + p + v;
+        s.defer = true;
+        document.head.appendChild(s);
+      }
+
+      console.log("[RR admin] JS base:", base + "/js/...");
+    })();
+  </script>
+
+</body>
 </html>

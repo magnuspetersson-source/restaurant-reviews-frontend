@@ -248,6 +248,12 @@ function __rrMarkersKey(reviews) {
     return hasText || hasRating;
   }
 
+  function getReviewSortTime(r) {
+    const d = r?.review_date || r?.created_at;
+    const t = d ? Date.parse(d) : NaN;
+    return Number.isFinite(t) ? t : 0;
+  }
+
   function getReviewByIdSafe(s, id) {
     const num = (id === null || id === undefined || id === "") ? null : Number(id);
     if (!Number.isFinite(num)) return null;

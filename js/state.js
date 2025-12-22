@@ -75,6 +75,12 @@
   function setSort(value) { state.ui.sort = value; emit(); }
   function setViewMode(value) { state.ui.viewMode = value === "map" ? "map" : "list"; emit(); }
 
+  function getReviewSortTime(r) {
+    const d = r?.review_date || r?.created_at;
+    const t = d ? Date.parse(d) : NaN;
+    return Number.isFinite(t) ? t : 0;
+  }
+
   function getFilteredSortedReviews() {
     let list = state.data.reviews.slice();
     const { type, price, minRating } = state.ui.filters;
@@ -95,7 +101,7 @@
         break;
       case "latest":
       default:
-        list.sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0));
+        list.sort((a,b) => getReviewSortTime(b) - getReviewSortTime(a));
         break;
     }
     return list;

@@ -7,6 +7,22 @@
   const BACKEND_BASE_URL = typeof cfg.backendBaseUrl === "string" ? cfg.backendBaseUrl : "";
   const HOME_LAT = Number(cfg.homeLat);
   const HOME_LNG = Number(cfg.homeLng);
+  
+  // ======= DATE HELPERS =======
+  function toInputDate(val) {
+    if (!val) return "";
+    if (typeof val === "string") return val.slice(0, 10);
+    try {
+      return new Date(val).toISOString().slice(0, 10);
+    } catch {
+      return "";
+    }
+  }
+
+  function todayInputDate() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
 
   if (BACKEND_BASE_URL === "") {
     console.info("[admin] RR_CONFIG.backendBaseUrl saknas/tomt → använder same-origin (bra för vercel dev).");
@@ -118,15 +134,8 @@
 
               <div class="rra-row">
                 <div class="rra-field-group">
-                  <label class="rra-field-label" for="rra-value-rating">Prisvärdhet</label>
-                  <select id="rra-value-rating">
-                    <option value="">Välj...</option>
-                    <option value="1">1 – Låg</option>
-                    <option value="2">2</option>
-                    <option value="3">3 – Okej</option>
-                    <option value="4">4</option>
-                    <option value="5">5 – Mycket hög</option>
-                  </select>
+                  <label class="rra-field-label" for="rra-review-date">Datum</label>
+                  <input type="date" id="rra-review-date" />
                 </div>
                 <div class="rra-field-group">
                   <label class="rra-field-label" for="rra-rating">Helhetsbetyg</label>
@@ -544,6 +553,7 @@
       rating: null,
       value_rating: null,
       cost_level: null,
+      review_date: todayInputDate(),
       // bakåtkompat:
       image_urls: [],
       // nytt:
@@ -650,7 +660,7 @@
     const container = document.createElement("div");
     allReviews
       .slice()
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .sort((a, b) => new Date(b.review_date || b.created_at) - new Date(a.review_date || a.created_at))
       .forEach((r) => {
         const item = document.createElement("div");
         item.className = "rra-list-item";
@@ -676,7 +686,8 @@
 
         const right = document.createElement("div");
         right.className = "rra-list-item-meta";
-        if (r.created_at) right.textContent = new Date(r.created_at).toLocaleDateString("sv-SE");
+        const d = r.review_date || r.created_at;
+        if (d) right.textContent = new Date(d).toLocaleDateString("sv-SE");
 
         item.appendChild(left);
         item.appendChild(right);
@@ -709,13 +720,13 @@
     const nameEl = document.getElementById("rra-selected-name");
     const typeEl = document.getElementById("rra-restaurant-type");
     const costEl = document.getElementById("rra-cost-level");
-    const valEl = document.getElementById("rra-value-rating");
+    const dateEl = document.getElementById("rra-review-date");
     const ratingEl = document.getElementById("rra-rating");
     const distEl = document.getElementById("rra-distance-meta");
     if (nameEl) nameEl.textContent = "Ingen vald ännu.";
     if (typeEl) typeEl.value = "";
     if (costEl) costEl.value = "";
-    if (valEl) valEl.value = "";
+    if (dateEl) dateEl.value = "";
     if (ratingEl) ratingEl.value = "";
     if (distEl) distEl.textContent = "Avstånd beräknas automatiskt från Ugerupsgatan när en plats valts.";
     if (quillComment) quillComment.setContents([]);
@@ -729,7 +740,7 @@
     const nameEl = document.getElementById("rra-selected-name");
     const typeEl = document.getElementById("rra-restaurant-type");
     const costEl = document.getElementById("rra-cost-level");
-    const valEl = document.getElementById("rra-value-rating");
+    const dateEl = document.getElementById("rra-review-date");
     const ratingEl = document.getElementById("rra-rating");
     const distEl = document.getElementById("rra-distance-meta");
 
@@ -743,7 +754,7 @@
     if (nameEl) nameEl.textContent = currentReview.place_name || "Okänd restaurang";
     if (typeEl) typeEl.value = currentReview.restaurant_type || "";
     if (costEl) costEl.value = currentReview.cost_level != null ? String(currentReview.cost_level) : "";
-    if (valEl) valEl.value = currentReview.value_rating != null ? String(currentReview.value_rating) : "";
+    if (dateEl) dateEl.value = toInputDate(currentReview.review_date || currentReview.created_at);
     if (ratingEl) ratingEl.value = currentReview.rating != null ? String(currentReview.rating) : "";
 
     if (quillComment) {
@@ -767,7 +778,7 @@
 
     const typeEl = document.getElementById("rra-restaurant-type");
     const costEl = document.getElementById("rra-cost-level");
-    const valEl = document.getElementById("rra-value-rating");
+    const dateEl = document.getElementById("rra-review-date");
     const ratingEl = document.getElementById("rra-rating");
 
     currentReview.restaurant_type = typeEl ? typeEl.value.trim() : null;
@@ -775,8 +786,13 @@
     const costVal = costEl ? costEl.value : "";
     currentReview.cost_level = costVal ? Number(costVal) : null;
 
-    const valVal = valEl ? valEl.value : "";
-    currentReview.value_rating = valVal ? Number(valVal) : null;
+    // Prisvärdhet borttagen
+    currentReview.value_rating = null;
+
+    // Datum (YYYY-MM-DD)
+    const dVal = dateEl ? dateEl.value : "";
+    currentReview.review_date = dVal ? dVal : null;
+
 
     const ratingVal = ratingEl ? ratingEl.value : "";
     currentReview.rating = ratingVal ? Number(ratingVal) : null;
@@ -832,7 +848,8 @@
       comment: r.comment || "",
       restaurantType: r.restaurant_type || null,
       costLevel: r.cost_level,
-      valueRating: r.value_rating,
+      valueRating: null,
+      reviewDate: r.review_date || null,
       homeDistanceKm: r.home_distance_km,
       restaurantLat: r.restaurant_lat,
       restaurantLng: r.restaurant_lng,
@@ -1271,7 +1288,7 @@
   };
   
   // ======= BOOT =======
-  document.addEventListener("DOMContentLoaded", () => {
+  function boot() {
     renderShellOnce();
 
     const mapsKey = cfg.googleMapsApiKey;
@@ -1280,5 +1297,12 @@
       return;
     }
     loadGoogleMaps({ apiKey: mapsKey, callbackName: "initRestaurantReviewsAdmin" });
-  });
+  }
+
+  // Kör direkt om DOM redan är klar (viktigt för lokal script-loader)
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
 })();

@@ -16,9 +16,9 @@
       .replaceAll("'", "&#039;");
   }
 
-  function formatDateYYYYMMDD(created_at) {
-    if (!created_at) return "";
-    return String(created_at).slice(0, 10);
+  function formatDateYYYYMMDD(r) {
+    const d = r?.review_date || r?.created_at;
+    return d ? String(d).slice(0, 10) : "";
   }
 
   function formatStars(rating) {
@@ -61,7 +61,7 @@
   function buildInfoHtml(r) {
     const name = esc(r.place_name || "");
     const stars = esc(formatStars(r.rating));
-    const date = esc(formatDateYYYYMMDD(r.created_at));
+    const date = esc(formatDateYYYYMMDD(r));
     const type = esc(String(r.restaurant_type || "").trim());
     const cost = esc(formatCost(r.cost_level));
 

@@ -63,7 +63,7 @@
     if (metaTopEl) {
       // Date fallback: review_date -> visited_at -> created_at -> updated_at
       const dateRaw = review.review_date || review.visited_at || review.created_at || review.updated_at || "";
-      const date = dateRaw ? String(dateRaw).slice(0, 10) : "";
+      const date = fmtDate(dateRaw);
     
       // Stars as glyphs (like list)
       const stars = (() => {

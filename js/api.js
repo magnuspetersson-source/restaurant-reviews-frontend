@@ -91,6 +91,11 @@
       restaurant_lng: r.restaurant_lng ?? null,
       created_at: r.created_at ?? null,
       comment_html: r.comment || "",
+      // Keep both keys so the rest of the app (app.js/panel.js/list.js) can work consistently
+      comment: r.comment || "",
+      comment_html: r.comment || "",
+      // NEW: preserve review date from backend (supports both snake_case + camelCase)
+      review_date: r.review_date ?? r.reviewDate ?? null,
       images,
     };
   }
