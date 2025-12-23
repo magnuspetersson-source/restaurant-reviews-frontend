@@ -60,6 +60,9 @@
   let excludedSet = new Set();
   const ADMIN_TOKEN = typeof cfg.adminToken === "string" ? cfg.adminToken : "";
 
+  // Upload-lock (bilder)
+  let isUploadingImages = false;
+
   // Quill
   let quillComment = null;
 
@@ -415,7 +418,7 @@
     initImageUpload();
     initAdminCommentsUI();
     initPlaceAutocomplete();
-	loadExclusions()
+    loadExclusions()
 	  .then(loadReviews)
 	  .then(loadNearbyRestaurants);
   }
@@ -451,7 +454,7 @@
       },
     });
 
-    setPlacesStatus("Kartan redo.")
+    setPlacesStatus("Kartan redo.");
     
   }
 
@@ -811,7 +814,7 @@
     if (listEl) listEl.innerHTML = '<p class="rra-muted">Hämtar recensioner...</p>';
 
     try {
-      const res = await fetch(BACKEND_BASE_URL + "/api/reviews");
+      const res = await fetch(backendUrl("/api/reviews"));
       if (!res.ok) throw new Error("Failed to fetch reviews");
       const data = await res.json();
       allReviews = (data || []).map((r) => normalizeReviewImages(r));
@@ -1046,7 +1049,7 @@
     };
 
     const isUpdate = !!r.id;
-    const url = BACKEND_BASE_URL + "/api/reviews";
+    const url = backendUrl("/api/reviews");
     const method = isUpdate ? "PUT" : "POST";
     if (isUpdate) payload.id = r.id;
 
@@ -1089,7 +1092,7 @@
     const statusEl = document.getElementById("rra-save-status");
     try {
       if (statusEl) statusEl.textContent = "Tar bort...";
-      const res = await fetch(BACKEND_BASE_URL + "/api/reviews?id=" + encodeURIComponent(currentReview.id), {
+      const res = await fetch(backendUrl("/api/reviews?id=" + encodeURIComponent(currentReview.id)), {
         method: "DELETE",
       });
       if (!res.ok && res.status !== 204) throw new Error("Failed to delete");
@@ -1114,20 +1117,29 @@
     const statusEl = document.getElementById("rra-images-status");
     if (!dropEl || !inputEl) return;
 
-    function handleFiles(files) {
-      if (!files || !files.length) return;
-      uploadImages(files);
+    // Upload-lock så vi aldrig triggar parallella uploads (change + drop, dubbelklick etc.)
+    // (läggs i outer scope längst upp i filen)
+    function setUiUploading(isUploading) {
+      try {
+        dropEl.style.opacity = isUploading ? "0.7" : "1";
+        dropEl.style.pointerEvents = isUploading ? "none" : "auto";
+        inputEl.disabled = !!isUploading;
+      } catch {}
     }
 
-    dropEl.addEventListener("click", () => inputEl.click());
+    dropEl.addEventListener("click", () => {
+      if (isUploadingImages) return;
+      inputEl.click();
+    });
+
     inputEl.addEventListener("change", () => {
-      handleFiles(inputEl.files);
+      if (inputEl.files && inputEl.files.length) handleFiles(inputEl.files);
       inputEl.value = "";
     });
 
     dropEl.addEventListener("dragover", (e) => {
       e.preventDefault();
-      dropEl.style.background = "rgba(0,0,0,0.04)";
+      if (!isUploadingImages) dropEl.style.background = "rgba(0,0,0,0.04)";
     });
     dropEl.addEventListener("dragleave", (e) => {
       e.preventDefault();
@@ -1136,6 +1148,7 @@
     dropEl.addEventListener("drop", (e) => {
       e.preventDefault();
       dropEl.style.background = "rgba(0,0,0,0.01)";
+      if (isUploadingImages) return;
       const dt = e.dataTransfer;
       if (dt && dt.files) handleFiles(dt.files);
     });
@@ -1144,30 +1157,27 @@
       return new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open("POST", url, true);
-        
+
+        // Admin-token (om backend vill skydda upload senare / i prod)
         if (typeof ADMIN_TOKEN === "string" && ADMIN_TOKEN) {
           xhr.setRequestHeader("x-admin-token", ADMIN_TOKEN);
         }
-    
+
         xhr.upload.onprogress = function (event) {
           if (event.lengthComputable && typeof onProgress === "function") {
             const percent = Math.round((event.loaded / event.total) * 100);
             onProgress(percent);
           }
         };
-    
+
         xhr.onreadystatechange = function () {
           if (xhr.readyState !== XMLHttpRequest.DONE) return;
-    
+
           const status = xhr.status;
           const text = xhr.responseText || "";
-    
-          // 2xx = OK
+
           if (status >= 200 && status < 300) {
-            if (!text.trim()) {
-              // Backend svarade 2xx men utan body → treat as empty json
-              return resolve({});
-            }
+            if (!text.trim()) return resolve({});
             try {
               return resolve(JSON.parse(text));
             } catch (err) {
@@ -1175,18 +1185,29 @@
               return reject(new Error("Upload returned non-JSON response (status " + status + ")"));
             }
           }
-    
-          // non-2xx
+
           console.error("[RRA upload] Upload failed:", { status, text: text.slice(0, 500) });
           reject(new Error("Upload failed with status " + status));
         };
-    
+
         xhr.onerror = function () {
           reject(new Error("Network error"));
         };
-    
+
         xhr.send(formData);
       });
+    }
+
+    function handleFiles(files) {
+      if (!files || !files.length) return;
+
+      // Extra skydd: om UI redan laddar upp, ignorera nya dropp/val
+      if (isUploadingImages) {
+        if (statusEl) statusEl.textContent = "Uppladdning pågår… vänta lite och prova igen.";
+        return;
+      }
+
+      uploadImages(files);
     }
 
     async function uploadImages(files) {
@@ -1195,38 +1216,80 @@
         return;
       }
       if (!files || !files.length) return;
-      if (statusEl) statusEl.textContent = "";
+
+      // ===== Upload-lock (GLOBAL) =====
+      if (isUploadingImages) return;
+      isUploadingImages = true;
+      setUiUploading(true);
 
       normalizeReviewImages(currentReview);
+      if (statusEl) statusEl.textContent = "";
 
       const progressContainer = document.getElementById("rra-upload-progress");
       const progressBar = document.getElementById("rra-upload-progress-bar");
 
-      if (progressContainer && progressBar) {
-        progressContainer.style.display = "block";
-        progressBar.style.width = "0%";
-      }
+      const setTotalProgress = (p) => {
+        const pct = Math.max(0, Math.min(100, Math.round(p)));
+        if (progressBar) progressBar.style.width = pct + "%";
+      };
 
-      const formData = new FormData();
-      Array.from(files).forEach((file) => formData.append("files", file));
-      formData.append("placeId", currentReview.place_id || "");
-      formData.append("placeName", currentReview.place_name || "");
+      if (progressContainer) progressContainer.style.display = "block";
+      setTotalProgress(0);
+
+      const baseUploadUrl = backendUrl("/api/upload-image");
+      const list = Array.from(files);
+      const uploadedUrls = [];
 
       try {
         if (statusEl) statusEl.textContent = "Laddar upp bilder...";
 
-        const data = await uploadFormDataWithProgress(BACKEND_BASE_URL + "/api/upload-image", formData, (percent) => {
-          if (progressBar) progressBar.style.width = percent + "%";
-        });
+        for (let i = 0; i < list.length; i++) {
+          const file = list[i];
 
-        const urls = Array.isArray(data.urls)
-          ? data.urls
-          : (typeof data.url === "string" ? [data.url] : []);
+          // En fil per request (stabilare mot edge/WAF)
+          const fd = new FormData();
+          fd.append("file", file, file.name);
+          fd.append("placeId", currentReview.place_id || "");
+          fd.append("placeName", currentReview.place_name || "");
+
+          const base = (i / list.length) * 100;
+          const span = 100 / list.length;
+
+          // Unik URL per fil (minskar edge/WAF-flakighet)
+          const url = baseUploadUrl + "?n=" + Date.now() + "-" + i;
+
+          const doUpload = async () =>
+            uploadFormDataWithProgress(url, fd, (percent) => {
+              setTotalProgress(base + (percent / 100) * span);
+            });
+
+          let data;
+          try {
+            data = await doUpload();
+          } catch (e1) {
+            // Retry en gång efter kort paus
+            await new Promise((r) => setTimeout(r, 900));
+            data = await doUpload();
+          }
+
+          const urls = Array.isArray(data?.urls)
+            ? data.urls
+            : typeof data?.url === "string"
+              ? [data.url]
+              : [];
+
+          urls.forEach((u) => {
+            if (typeof u === "string" && u) uploadedUrls.push(u);
+          });
+
+          // Cooldown mellan filer (undvik “second request 403”)
+          if (i < list.length - 1) {
+            await new Promise((r) => setTimeout(r, 900));
+          }
+        }
 
         if (!Array.isArray(currentReview.images)) currentReview.images = [];
-        urls.forEach((url) => {
-          currentReview.images.push({ url, caption: "" });
-        });
+        uploadedUrls.forEach((url) => currentReview.images.push({ url, caption: "" }));
 
         // bakåtkompat:
         currentReview.image_urls = currentReview.images.map((x) => x.url);
@@ -1234,20 +1297,22 @@
         updateImagesPreview();
 
         if (statusEl) statusEl.textContent = "Bilder uppladdade.";
-        if (progressContainer && progressBar) {
-          progressBar.style.width = "100%";
+        setTotalProgress(100);
+
+        if (progressContainer) {
           setTimeout(() => {
             progressContainer.style.display = "none";
-            progressBar.style.width = "0%";
+            setTotalProgress(0);
           }, 600);
         }
       } catch (err) {
         console.error("[RRA upload] error:", err);
         if (statusEl) statusEl.textContent = "Kunde inte ladda upp bilder.";
-        if (progressContainer && progressBar) {
-          progressContainer.style.display = "none";
-          progressBar.style.width = "0%";
-        }
+        if (progressContainer) progressContainer.style.display = "none";
+        setTotalProgress(0);
+      } finally {
+        isUploadingImages = false;
+        setUiUploading(false);
       }
     }
   }
@@ -1305,7 +1370,7 @@
     listEl.innerHTML = '<p class="rra-muted">Hämtar kommentarer...</p>';
 
     try {
-      let url = BACKEND_BASE_URL + "/api/comments";
+      let url = backendUrl("/api/comments");
       if (filter === "pending") url += "?status=pending";
       const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to fetch comments");
@@ -1410,7 +1475,7 @@
     if (!confirm("Godkänna denna kommentar?")) return;
 
     try {
-      const res = await fetch(BACKEND_BASE_URL + "/api/comments", {
+      const res = await fetch(backendUrl("/api/comments"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, status: "approved" }),
@@ -1429,7 +1494,7 @@
     if (!confirm("Ta bort denna kommentar permanent?")) return;
 
     try {
-      const res = await fetch(BACKEND_BASE_URL + "/api/comments?id=" + encodeURIComponent(id), { method: "DELETE" });
+      const res = await fetch(backendUrl("/api/comments?id=" + encodeURIComponent(id)), { method: "DELETE" });
       if (!res.ok && res.status !== 204) throw new Error("Failed to delete");
       await loadAdminComments(currentFilter);
     } catch (err) {
