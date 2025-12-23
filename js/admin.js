@@ -34,7 +34,7 @@
   const ICON_REVIEWED = "http://maps.google.com/mapfiles/ms/icons/green-dot.png";
   const ICON_UNREVIEWED = "http://maps.google.com/mapfiles/ms/icons/red-dot.png";
   const ICON_NEAREST_UNREVIEWED = "http://maps.google.com/mapfiles/ms/icons/blue-dot.png";
-  const ICON_EXCLUDED = "http://maps.google.com/mapfiles/ms/icons/grey-dot.png";
+  const ICON_EXCLUDED = "http://maps.google.com/mapfiles/ms/icons/yellow-dot.png";
 
   // ======= STATE =======
   let map;
@@ -362,7 +362,7 @@
     selectedMarker = marker || null;
 
     if (marker && map && window.google && google.maps && google.maps.Size) {
-      const baseIcon = marker._baseIcon || marker.getIcon() || ICON_UNREVIEWED;
+      const baseIcon = marker._baseIcon || ICON_UNREVIEWED;
       let bigIcon;
       if (typeof baseIcon === "string") {
         bigIcon = { url: baseIcon, scaledSize: new google.maps.Size(40, 40) };
@@ -607,25 +607,42 @@
         // Hur många vi vill rendera totalt (där "10 nya" får plats)
         const targetTotal = 10 + nearbyReviewedCount + nearbyExcludedCount;
       
-        const places = placesAll.slice(0, targetTotal);
+        // Vi vill visa: 10 nya + alla reviewed + alla excluded (så grå pins syns)
+        // Backend skickar redan sorterat närmast först.
+        const excludedIds = excludedSet; // från loadExclusions()
+        const isReviewed = (p) => !!p.reviewed;
+        const isExcluded = (p) => excludedIds.has(p.place_id) || !!p.excluded;
+
+        // 1) alltid med: reviewed + excluded (inom resultset)
+        const pinned = placesAll.filter((p) => isReviewed(p) || isExcluded(p));
+
+        // 2) fyll på med "nya" (inte reviewed, inte excluded) tills vi har minst 10 nya
+        const fresh = placesAll.filter((p) => !isReviewed(p) && !isExcluded(p));
+        const fresh10 = fresh.slice(0, 10);
+
+        // 3) slå ihop unikt, behåll ordningen (närmast först)
+        const wantIds = new Set([...pinned, ...fresh10].map((p) => p.place_id));
+        const places = placesAll.filter((p) => wantIds.has(p.place_id));
       
         // Synca exkluderingar från backend-flagg (bra vid första load)
-        excludedSet = new Set(placesAll.filter((p) => p.excluded).map((p) => p.place_id));
-      
-        nearbyPlaces = places.map((p) => ({
-          place_id: p.place_id,
-          name: p.name,
-          vicinity: p.address || "",
-          geometry: {
-            location: {
-              lat: () => p.lat,
-              lng: () => p.lng,
+        // ... efter att du fått placesAll och ev. slice:at till places ...
+        
+        nearbyPlaces = places.map((p) => {
+          const isExcluded = excludedSet.has(p.place_id) || !!p.excluded; // merge: DB + backend-flag
+          return {
+            place_id: p.place_id,
+            name: p.name,
+            vicinity: p.address || "",
+            geometry: {
+              location: {
+                lat: () => p.lat,
+                lng: () => p.lng,
+              },
             },
-          },
-          _reviewed: !!p.reviewed,
-          _excluded: !!p.excluded,
-        }));
-      
+            _reviewed: !!p.reviewed,
+            _excluded: isExcluded,
+          };
+        });      
         setPlacesStatus(
           `Laddade ${places.length}/${placesAll.length} träffar (visar ${targetTotal} för att ha minst 10 nya).`
         );
@@ -633,6 +650,12 @@
         computeNearestUnreviewed();
         renderPlaceMarkers();
       })
+      .catch((err) => {
+        console.error("[admin] loadNearbyRestaurants failed", err);
+        setPlacesStatus("Kunde inte ladda platser.");
+        nearbyLoaded = false; // allow retry
+      });
+
   }
   function computeNearestUnreviewed() {
     let bestDist = Infinity;
@@ -688,7 +711,8 @@
         icon,
       });
   
-      marker._baseIcon = icon;
+      // Spara alltid bas-ikonen som en URL-sträng (stabilt för restore)
+      marker._baseIcon = (typeof icon === "string") ? icon : (icon && icon.url) ? icon.url : ICON_UNREVIEWED;
       marker._place = p;
       marker._review = reviewed || null;
   
