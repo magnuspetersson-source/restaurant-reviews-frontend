@@ -1144,33 +1144,47 @@
       return new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open("POST", url, true);
-
+        
+        if (typeof ADMIN_TOKEN === "string" && ADMIN_TOKEN) {
+          xhr.setRequestHeader("x-admin-token", ADMIN_TOKEN);
+        }
+    
         xhr.upload.onprogress = function (event) {
           if (event.lengthComputable && typeof onProgress === "function") {
             const percent = Math.round((event.loaded / event.total) * 100);
             onProgress(percent);
           }
         };
-
+    
         xhr.onreadystatechange = function () {
-          if (xhr.readyState === XMLHttpRequest.DONE) {
-            if (xhr.status >= 200 && xhr.status < 300) {
-              try {
-                const json = JSON.parse(xhr.responseText || "{}");
-                resolve(json);
-              } catch (err) {
-                reject(err);
-              }
-            } else {
-              reject(new Error("Upload failed with status " + xhr.status));
+          if (xhr.readyState !== XMLHttpRequest.DONE) return;
+    
+          const status = xhr.status;
+          const text = xhr.responseText || "";
+    
+          // 2xx = OK
+          if (status >= 200 && status < 300) {
+            if (!text.trim()) {
+              // Backend svarade 2xx men utan body → treat as empty json
+              return resolve({});
+            }
+            try {
+              return resolve(JSON.parse(text));
+            } catch (err) {
+              console.error("[RRA upload] Non-JSON response:", { status, text: text.slice(0, 500) });
+              return reject(new Error("Upload returned non-JSON response (status " + status + ")"));
             }
           }
+    
+          // non-2xx
+          console.error("[RRA upload] Upload failed:", { status, text: text.slice(0, 500) });
+          reject(new Error("Upload failed with status " + status));
         };
-
+    
         xhr.onerror = function () {
           reject(new Error("Network error"));
         };
-
+    
         xhr.send(formData);
       });
     }
@@ -1205,7 +1219,9 @@
           if (progressBar) progressBar.style.width = percent + "%";
         });
 
-        const urls = Array.isArray(data.urls) ? data.urls : [];
+        const urls = Array.isArray(data.urls)
+          ? data.urls
+          : (typeof data.url === "string" ? [data.url] : []);
 
         if (!Array.isArray(currentReview.images)) currentReview.images = [];
         urls.forEach((url) => {
