@@ -31,10 +31,10 @@
     console.error("[admin] Missing/invalid RR_CONFIG.homeLat/homeLng");
   }
 
-  const ICON_REVIEWED = "http://maps.google.com/mapfiles/ms/icons/green-dot.png";
-  const ICON_UNREVIEWED = "http://maps.google.com/mapfiles/ms/icons/red-dot.png";
-  const ICON_NEAREST_UNREVIEWED = "http://maps.google.com/mapfiles/ms/icons/blue-dot.png";
-  const ICON_EXCLUDED = "http://maps.google.com/mapfiles/ms/icons/yellow-dot.png";
+  const ICON_REVIEWED = "https://maps.google.com/mapfiles/ms/icons/green-dot.png";
+  const ICON_UNREVIEWED = "https://maps.google.com/mapfiles/ms/icons/red-dot.png";
+  const ICON_NEAREST_UNREVIEWED = "https://maps.google.com/mapfiles/ms/icons/blue-dot.png";
+  const ICON_EXCLUDED = "https://maps.google.com/mapfiles/ms/icons/yellow-dot.png";
 
   // ======= STATE =======
   let map;
