@@ -242,6 +242,25 @@ function __rrMarkersKey(reviews) {
   }
 
   // ---------------- Helpers ----------------
+  
+  function rrResizeMapSoon() {
+    const m = window.RR_MAP?.getMap?.();
+    if (!m || !window.google?.maps) return;
+  
+    // Run after layout has settled (Squarespace + display toggles)
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        try {
+          const c = m.getCenter();
+          window.google.maps.event.trigger(m, "resize");
+          if (c) m.setCenter(c);
+        } catch (e) {
+          console.warn("[RR] map resize failed", e);
+        }
+      });
+    });
+  }
+  
   function isReviewed(r) {
     const hasText = !!(r?.comment && String(r.comment).trim());
     const hasRating = r?.rating != null && Number.isFinite(Number(r.rating));
@@ -514,6 +533,7 @@ function __rrMarkersKey(reviews) {
     if ((viewMode || "list") === "map") {
       colMap.style.display = "block";
       colList.style.display = "none";
+      rrResizeMapSoon(); // ✅ fix: map canvas matches container width
     } else {
       colMap.style.display = "none";
       colList.style.display = "block";
@@ -762,6 +782,8 @@ function __rrMarkersKey(reviews) {
     try {
       if (window.RR_CONFIG_READY) await window.RR_CONFIG_READY;
       await window.RR_MAP.initMap(mapEl);
+      rrResizeMapSoon();
+      window.addEventListener("resize", rrResizeMapSoon, { passive: true });
     } catch (e) {
       const hint = qs("#mapHint");
       if (hint) {

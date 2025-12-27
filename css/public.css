@@ -22,6 +22,7 @@
 
   --rr-map-min-h: 420px;
   --rr-map-min-h-mobile: 360px;
+  --rr-map-max-h: 600px;
 
   --rr-panel-w: 520px;
 
@@ -31,8 +32,6 @@
 
   /* panel fade background (match content card) */
   --rr-content-bg: rgba(255,255,255,.92);
-  
-  --rr-map-max-h: 600px;
 }
 
 *{ box-sizing:border-box; }
@@ -44,6 +43,9 @@ body{ margin:0; }
 #app, #app *{ font-family: inherit; color: inherit; }
 #app a{ text-decoration:none; }
 #app a:hover{ text-decoration:underline; }
+
+/* Panel under Squarespace header (set via app.js: --rr-header-offset) */
+#app{ --rr-header-offset: 0px; }
 
 /* =========================================================
    App "rounded card" wrapper
@@ -59,7 +61,9 @@ body{ margin:0; }
   padding: var(--rr-card-pad);
   margin: var(--rr-card-margin-y) 0;
 
-  overflow: hidden; /* keep rounded corners clean */
+  /* keep rounded corners clean + prevent horizontal overflow */
+  overflow: hidden;
+  overflow-x: hidden;
 }
 
 /* =========================================================
@@ -78,6 +82,9 @@ body{ margin:0; }
   justify-content:space-between;
 }
 
+/* Critical: allow flex children to shrink (prevents pushing page width) */
+#app .topbar > *{ min-width: 0; }
+
 #app .brand__title{ font-weight: 600; letter-spacing:.2px; }
 #app .brand__sub{ opacity:.75; font-size:13px; margin-top:2px; }
 
@@ -87,6 +94,9 @@ body{ margin:0; }
   flex-wrap:wrap;
   justify-content:flex-end;
   align-items:center;
+
+  min-width: 0;
+  max-width: 100%;
 }
 
 /* Fields */
@@ -96,6 +106,8 @@ body{ margin:0; }
   border-radius: 12px;
   padding: 10px 12px;
   outline: none;
+
+  max-width: 100%;
 }
 #app .control:focus{
   border-color: var(--rr-border-strong);
@@ -138,8 +150,6 @@ body{ margin:0; }
 
 /* =========================================================
    Layout A: main grid
-   - Keep panel anchored to column 3 always (prevents "bottom-left")
-   - Column 3 is 0px when panel is closed
    ========================================================= */
 #app .main{
   flex: 1;
@@ -148,6 +158,10 @@ body{ margin:0; }
 
   grid-template-columns: 420px 1fr 0px;
   gap: var(--rr-gap);
+
+  /* prevent grid stretch weirdness + allow children to shrink */
+  align-items: start;
+  min-width: 0;
 }
 
 #app .main.has-panel{
@@ -157,12 +171,14 @@ body{ margin:0; }
 #app .col{
   min-height: 0;
   position: relative;
+  min-width: 0; /* critical for overflow */
 }
 
 /* Left column */
 #app .col--list{
   border-right: 1px solid rgba(0,0,0,.08);
   padding-right: var(--rr-gap);
+  min-width: 0;
 }
 
 /* =========================================================
@@ -228,27 +244,43 @@ body{ margin:0; }
 }
 
 /* =========================================================
-   Map
+   Map (single source of truth)
    ========================================================= */
 #app #colMap{
-  border-radius: 0.75rem;
+  width: 100%;
+  max-width: 100%;
+
+  border-radius: 16px;
   border: 1px solid rgba(0,0,0,0.08);
   overflow: hidden;
   background: rgba(255,255,255,.80);
 
-  /* optional: feels nice on desktop */
-  aspect-ratio: 1 / 1;
+  /* Height strategy:
+     - keep it tall enough
+     - cap it so it doesn't create huge page
+  */
   min-height: var(--rr-map-min-h);
+  height: clamp(320px, 55vh, var(--rr-map-max-h));
+  max-height: var(--rr-map-max-h);
+
+  /* optional desktop feel: square-ish but capped */
+  aspect-ratio: 1 / 1;
+  max-height: min(70vh, 900px);
+
+  min-width: 0; /* critical for overflow in grids */
 }
 
-/* Ensure the actual map fills the container */
-#app #map{
-  height: 100%;
-  min-height: inherit;
-}
+/* map container inside */
 #app .map{
   position:absolute;
   inset:0;
+}
+
+/* the actual map element must fill its card */
+#app #map{
+  height: 100%;
+  width: 100%;
+  max-width: 100%;
 }
 
 /* Map hint */
@@ -267,8 +299,6 @@ body{ margin:0; }
 
 /* =========================================================
    Panel (3rd column)
-   - anchored to grid col 3 always
-   - visibility controlled via .is-open (not display)
    ========================================================= */
 #app #reviewPanel{
   grid-column: 3;
@@ -280,7 +310,7 @@ body{ margin:0; }
 
   background: rgba(255,255,255,.95);
   border: 1px solid rgba(0,0,0,0.08);
-  border-radius: 0.75rem;
+  border-radius: 16px;
 
   overflow: hidden;
 
@@ -294,6 +324,8 @@ body{ margin:0; }
   transform: translateY(6px);
   transition: opacity 160ms ease, transform 160ms ease, visibility 0s linear 160ms;
   will-change: opacity, transform;
+
+  min-width: 0;
 }
 
 /* Open */
@@ -305,7 +337,7 @@ body{ margin:0; }
   transition: opacity 160ms ease, transform 160ms ease, visibility 0s;
 }
 
-/* Panel header (single source of truth) */
+/* Panel header */
 #app .panel__header{
   position: sticky;
   top: 0;
@@ -383,6 +415,7 @@ body{ margin:0; }
   padding-top: 16px;
   overflow:auto;
   height:100%;
+  min-width: 0;
 }
 
 /* =========================================================
@@ -441,7 +474,7 @@ body{ margin:0; }
   border-radius: 12px;
 }
 
-/* Collapsed review text (5 lines) */
+/* Collapsed review text (5 lines) + fade */
 #app #panelContent{
   position: relative;
 }
@@ -638,13 +671,8 @@ body{ margin:0; }
 /* =========================================================
    Responsive
    ========================================================= */
-/* Panel under Squarespace header (set via app.js: --rr-header-offset) */
-#app{
-  --rr-header-offset: 0px;
-}
-
-
 @media (max-width: 980px){
+  /* Stack everything */
   #app .main,
   #app .main.has-panel{
     grid-template-columns: 1fr;
@@ -654,9 +682,12 @@ body{ margin:0; }
   #app .mobileToggle{ display:flex; }
   #app .row{ grid-template-columns: 1fr; }
 
+  /* On mobile, let map height rule (avoid square pushing layout) */
   #app #colMap{
     min-height: var(--rr-map-min-h-mobile);
-    aspect-ratio: auto; /* on mobile, let height rule */
+    aspect-ratio: auto;
+    height: clamp(280px, 48vh, 520px);
+    max-height: 520px;
   }
 
   /* When panel open: hide list/map (matches app.js behavior) */
@@ -677,64 +708,57 @@ body{ margin:0; }
     overflow: auto;
     transform: translateY(10px);
   }
-}
 
-/* --- Mobile: keep slideshow modal below Squarespace header --- */
-@media (max-width: 980px){
+  /* --- Mobile: keep slideshow modal below Squarespace header --- */
   #app .modal{
-    /* instead of inset:0 */
     top: var(--rr-header-offset, 0px);
     left: 0;
     right: 0;
     bottom: 0;
     height: calc(100dvh - var(--rr-header-offset, 0px));
   }
-
-  /* Make sure overlay covers only the available area */
-  #app .modal__overlay{
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-  }
-
-  /* Keep dialog within available height */
+  #app .modal__overlay{ top:0; left:0; right:0; bottom:0; }
   #app .modal__dialog{
     max-height: calc(100dvh - var(--rr-header-offset, 0px) - 24px);
     overflow: auto;
   }
+  #app .modal__close{ top: 12px; }
 
-  /* Optional: ensure close button stays reachable */
-  #app .modal__close{
-    top: 12px;
+  /* ===========================
+     Mobile overflow fixes
+     =========================== */
+  #app .topbar{
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  /* Put brand on its own line and controls below */
+  #app .topbar__left,
+  #app .topbar__right{
+    width: 100%;
+  }
+
+  #app .controls{
+    width: 100%;
+    justify-content: flex-start;
   }
 }
 
-/* ==== RR: Map – single source of truth ==== */
+/* Very small screens: 2-col control grid */
+@media (max-width: 520px){
+  #app .controls .control{
+    width: calc(50% - 6px);
+  }
 
-#app #colMap {
-  height: clamp(320px, 55vh, var(--rr-map-max-h));
-  max-height: var(--rr-map-max-h);
-  
-  align-self: flex-start;   /* stoppa grid-stretch */
-  overflow: hidden;         /* klipp kartan */
-  border-radius: 16px;
+  #app .distanceToggle{
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 8px;
+    width: 100%;
+  }
 
-  border: 1px solid rgba(0,0,0,0.08);
-  background: rgba(255,255,255,.80);
+  #app .mobileToggle{
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
 }
-
-/* Själva kartan fyller alltid kortet */
-#app #map {
-  height: 100%;
-  width: 100%;
-}
-
-/* Map should prefer square, but never create a giant page */
-#app #colMap{
-  aspect-ratio: 1 / 1;
-  min-height: var(--rr-map-min-h);
-  max-height: min(70vh, 900px);  /* <-- adjust to taste */
-}
-
-#app .main{ align-items: start; }
