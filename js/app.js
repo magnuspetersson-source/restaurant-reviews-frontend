@@ -37,7 +37,6 @@ function ensureAppMarkup() {
             <select id="sortSelect" class="control">
               <option value="latest">Sortera: Senaste</option>
               <option value="rating_desc">Sortera: Högst betyg</option>
-              <option value="value_desc">Sortera: Bäst value</option>
               <option value="distance_asc">Sortera: Närmast</option>
             </select>
 

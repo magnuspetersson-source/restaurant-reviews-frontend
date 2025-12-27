@@ -762,3 +762,28 @@ body{ margin:0; }
     justify-content: flex-end;
   }
 }
+
+/* Mobile: distance label above, two buttons on same row */
+@media (max-width: 520px){
+  /* Force distance block to take its own full row inside .controls */
+  #app .controls .distanceToggle{
+    flex: 0 0 100%;          /* 🔑 THIS IS THE KEY */
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+
+  /* Label on its own row */
+  #app .controls .distanceToggle .distanceLabel{
+    flex: 0 0 100%;
+    margin: 0 0 2px 0;
+    opacity: .75;
+  }
+
+  /* Two buttons on same row, equal width */
+  #app .controls .distanceToggle .rr-toggle{
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
