@@ -963,19 +963,19 @@ body{ margin:0; }
 #app #slideshowModal{
   position: fixed !important;
   inset: 0 !important;
-  z-index: 100000 !important; /* near max int, beats Squarespace header */
+  z-index: 2147483000 !important; /* near max int, beats Squarespace header */
 }
 
 #app #slideshowModal .modal__overlay{
-  z-index: 100000 !important;
+  z-index: 2147483001 !important;
 }
 
 #app #slideshowModal .modal__dialog{
-  z-index: 100000 !important;
+  z-index: 2147483002 !important;
 }
 
 #app #slideshowModal .modal__close,
 #app #slideshowModal #modalPrevBtn,
 #app #slideshowModal #modalNextBtn{
-  z-index: 100000 !important;
+  z-index: 2147483003 !important;
 }
