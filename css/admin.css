@@ -1,847 +1,347 @@
 /* =========================================================
-   Restaurant Reviews (Public) — Layout A (List | Map | Panel)
-   Clean + functional + visually consistent
+   RRA Admin CSS – uppstädad + patchar
+   - Stabil karthöjd (70vh + min-height)
+   - Bildgrid med kort + captions (skrivbara)
+   - Quill Snow-stöd (CSS import + editorhöjd)
    ========================================================= */
 
-/* ---------------- Tokens ---------------- */
-:root{
-  --rr-gap: 14px;
-  --rr-radius: 16px;
-  --rr-radius2: 22px;
+/* ---- Quill Snow theme ---- */
+@import url("https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css");
 
-  --rr-surface: rgba(255,255,255,.92);
-  --rr-surface2: rgba(255,255,255,.80);
-
-  --rr-field-bg: rgba(255,255,255,.98);
-  --rr-field-border: rgba(0,0,0,.18);
-
-  --rr-border: rgba(0,0,0,.14);
-  --rr-border-strong: rgba(0,0,0,.55);
-
-  --rr-shadow: 0 16px 48px rgba(0,0,0,.18);
-
-  --rr-map-min-h: 420px;
-  --rr-map-min-h-mobile: 360px;
-  --rr-map-max-h: 600px;
-
-  --rr-panel-w: 520px;
-
-  /* outer spacing around the "card" */
-  --rr-card-pad: 16px;
-  --rr-card-margin-y: 16px;
-
-  /* panel fade background (match content card) */
-  --rr-content-bg: rgba(255,255,255,.92);
-
-  /* Safety: z-index layers */
-  --rr-z-topbar: 5;
-  --rr-z-panel: 9999;
-  --rr-z-modal: 99990;
+/* ---- Bas / container ---- */
+#restaurant-reviews-admin {
+  font-family: inherit;
+  color: inherit;
 }
 
-*{ box-sizing:border-box; }
-html,body{ height:100%; }
-body{ margin:0; }
-
-/* Root: inherit Squarespace theme typography/colors */
-#app{
-  position: relative;
-  --rr-header-offset: 0px;   /* set by app.js */
-  isolation: isolate;        /* important: keep stacking context sane */
-}
-#app, #app *{ font-family: inherit; color: inherit; }
-#app a{ text-decoration:none; }
-#app a:hover{ text-decoration:underline; }
-
-/* =========================================================
-   App "rounded card" wrapper
-   ========================================================= */
-#app .app{
-  min-height: 100%;
-  display:flex;
-  flex-direction:column;
-
-  background: var(--rr-surface);
-  border: 1px solid rgba(0,0,0,0.08);
-  border-radius: var(--rr-radius);
-  padding: var(--rr-card-pad);
-  margin: var(--rr-card-margin-y) 0;
-
-  overflow: hidden;
-  overflow-x: hidden;
+#restaurant-reviews-admin * {
+  box-sizing: border-box;
 }
 
-/* =========================================================
-   Topbar
-   ========================================================= */
-#app .topbar{
-  position: sticky;
-  top: 0;
-  z-index: var(--rr-z-topbar);
-  background: transparent;
-
-  padding: 6px 0 12px 0;
-  display:flex;
-  gap: 14px;
-  align-items:flex-start;
-  justify-content:space-between;
-}
-
-/* Critical: allow flex children to shrink (prevents pushing page width) */
-#app .topbar > *{ min-width: 0; }
-
-#app .brand__title{ font-weight: 600; letter-spacing:.2px; }
-#app .brand__sub{ opacity:.75; font-size:13px; margin-top:2px; }
-
-#app .controls{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  justify-content:flex-end;
-  align-items:center;
-
-  min-width: 0;
-  max-width: 100%;
-}
-
-/* Fields */
-#app .control{
-  background: var(--rr-field-bg);
-  border: 1px solid var(--rr-field-border);
-  border-radius: 12px;
-  padding: 10px 12px;
-  outline: none;
-  max-width: 100%;
-}
-#app .control:focus{
-  border-color: var(--rr-border-strong);
-  box-shadow: 0 0 0 3px rgba(0,0,0,.08);
-}
-
-/* Distance toggle */
-#app .distanceToggle{ display:flex; gap:8px; align-items:center; }
-#app .distanceLabel{
-  font-size: 13px;
-  opacity: .75;
-  margin-right: 6px;
-  align-self: center;
-  white-space: nowrap;
-}
-#app .rr-toggle{ cursor:pointer; }
-#app .rr-toggle.is-active{
-  border-color: var(--rr-border-strong);
-  box-shadow: 0 0 0 3px rgba(0,0,0,.08);
-}
-
-/* Mobile toggle */
-#app .mobileToggle{
-  display:none;
-  margin-top:10px;
-  justify-content:flex-end;
-  gap:8px;
-}
-#app .toggleBtn{
-  background: var(--rr-field-bg);
-  border:1px solid var(--rr-field-border);
-  border-radius:999px;
-  padding:8px 12px;
-  cursor:pointer;
-}
-#app .toggleBtn.is-active{
-  border-color: var(--rr-border-strong);
-  box-shadow: 0 0 0 3px rgba(0,0,0,.08);
-}
-
-/* =========================================================
-   Layout A: main grid
-   ========================================================= */
-#app .main{
-  flex: 1;
-  min-height: 0;
-  display:grid;
-
-  grid-template-columns: 420px 1fr 0px;
-  gap: var(--rr-gap);
-
-  align-items: start;
-  min-width: 0;
-}
-
-#app .main.has-panel{
-  grid-template-columns: 420px 1fr min(var(--rr-panel-w), 100%);
-}
-
-#app .col{
-  min-height: 0;
-  position: relative;
-  min-width: 0;
-}
-
-/* Left column */
-#app .col--list{
-  border-right: 1px solid rgba(0,0,0,.08);
-  padding-right: var(--rr-gap);
-  min-width: 0;
-}
-
-/* =========================================================
-   List
-   ========================================================= */
-#app .list{
-  padding: 0;
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-  overflow:auto;
-  height:100%;
-}
-
-#app .status{
-  margin: 0 0 12px 0;
-  padding: 12px;
-  border: 1px solid rgba(0,0,0,.08);
-  border-radius: var(--rr-radius);
-  background: rgba(255,255,255,.85);
-  opacity:.9;
-}
-
-/* Cards */
-#app .card{
-  background: rgba(255,255,255,.95);
-  border: 1px solid rgba(0,0,0,.12);
-  border-radius: var(--rr-radius);
-  padding: 12px;
-  cursor:pointer;
-  transition: transform .12s ease, border-color .12s ease, box-shadow .12s ease;
-}
-#app .card:hover{
-  transform: translateY(-1px);
-  border-color: rgba(0,0,0,.18);
-}
-#app .card.is-selected{
-  border-color: rgba(0,0,0,.35);
-  box-shadow: 0 0 0 3px rgba(0,0,0,.08);
-}
-
-#app .card__title{
-  font-weight: 600;
-  line-height: 1.25;
-  margin-bottom: 6px;
-  font-size: 16px;
-}
-
-#app .card__row1{
-  display:flex;
-  gap:10px;
-  align-items:baseline;
-  opacity:.9;
-  font-size:13px;
-}
-#app .card__stars{ letter-spacing:.8px; }
-#app .card__date{ opacity:.75; }
-
-#app .card__row2{
-  margin-top: 6px;
-  opacity:.75;
-  font-size:13px;
-}
-
-/* =========================================================
-   Map (single source of truth)
-   ========================================================= */
-#app #colMap{
-  width: 100%;
-  max-width: 100%;
-
+/* ---- Kort / layout ---- */
+#restaurant-reviews-admin .rra-card {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 16px;
-  border: 1px solid rgba(0,0,0,0.08);
-  overflow: hidden;
-  background: rgba(255,255,255,.80);
-
-  min-height: var(--rr-map-min-h);
-  height: clamp(320px, 55vh, var(--rr-map-max-h));
-  max-height: var(--rr-map-max-h);
-
-  aspect-ratio: 1 / 1;
-  max-height: min(70vh, 900px);
-
-  min-width: 0;
+  padding: 16px;
+  margin: 16px 0;
 }
 
-/* map container inside */
-#app .map{ position:absolute; inset:0; }
-
-/* the actual map element must fill its card */
-#app #map{
-  height: 100%;
-  width: 100%;
-  max-width: 100%;
+#restaurant-reviews-admin .rra-header h2 {
+  margin: 0 0 6px;
+  font-size: 1.35rem;
 }
 
-/* Map hint */
-#app .mapHint{
-  position:absolute;
-  left:12px;
-  bottom:12px;
-  z-index:2;
-  background: rgba(0,0,0,.55);
-  border:1px solid rgba(255,255,255,.14);
-  border-radius: 12px;
-  padding:10px 12px;
-  font-size:13px;
-  color: rgba(255,255,255,.82);
-}
-
-/* =========================================================
-   Panel (3rd column)
-   ========================================================= */
-#app #reviewPanel{
-  grid-column: 3;
-  grid-row: 1;
-
-  position: relative;
-  width: 100%;
-  height: 100%;
-
-  background: rgba(255,255,255,.95);
-  border: 1px solid rgba(0,0,0,0.08);
-  border-radius: 16px;
-
-  overflow: hidden;
-  display:flex;
-  flex-direction:column;
-
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transform: translateY(6px);
-  transition: opacity 160ms ease, transform 160ms ease, visibility 0s linear 160ms;
-  will-change: opacity, transform;
-
-  min-width: 0;
-}
-
-/* Open */
-#app #reviewPanel.is-open{
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
-  transform: none;
-  transition: opacity 160ms ease, transform 160ms ease, visibility 0s;
-}
-
-/* Panel header */
-#app .panel__header{
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  background: inherit;
-
-  border-bottom: 1px solid rgba(0,0,0,.08);
-  padding: 14px 14px 10px 14px;
-
-  position: relative;
-  padding-left: 54px;
-  padding-right: 260px;
-  min-height: 92px;
-}
-
-#app #panelCloseBtn{
-  position: absolute;
-  top: 14px;
-  left: 14px;
-}
-
-#app .panel__title{ font-weight:800; line-height: 1.15; font-size: 18px; margin-top: 0; }
-#app .panel__meta{
-  opacity:.75;
-  font-size:13px;
-  margin-top:6px;
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-}
-
-/* Right meta stack */
-#app .panel__metaTop{
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  text-align: right;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-width: 240px;
-}
-#app .pm-title{
-  font-weight: 800;
-  line-height: 1.15;
-  font-size: 18px;
-  opacity: 1;
-}
-#app .pm-row1{
-  font-size: 16px;
-  line-height: 1.1;
-  letter-spacing: .6px;
-  opacity: .95;
-}
-#app .pm-row2{
-  font-size: 13px;
-  line-height: 1.2;
-  opacity: .75;
-}
-
-/* Buttons */
-#app .iconBtn{
-  background: rgba(255,255,255,.95);
-  border: 1px solid var(--rr-field-border);
-  border-radius: 12px;
-  padding: 8px 10px;
-  cursor: pointer;
-}
-#app .iconBtn:hover{ border-color: rgba(0,0,0,.35); }
-
-#app .panel__body{
-  padding: 14px;
-  padding-top: 16px;
-  overflow:auto;
-  height:100%;
-  min-width: 0;
-}
-
-/* =========================================================
-   Gallery
-   ========================================================= */
-#app .gallery{
-  display:grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap:10px;
-  margin-bottom:14px;
-}
-#app .gallery__item{
-  border-radius: 14px;
-  border: 1px solid rgba(0,0,0,.10);
-  background: rgba(255,255,255,.92);
-  overflow:hidden;
-  cursor:pointer;
-  aspect-ratio: 1 / 1;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-#app .gallery__item img{
-  width:100%;
-  height:100%;
-  object-fit:cover;
-  display:block;
-}
-
-/* =========================================================
-   Content (Quill HTML)
-   ========================================================= */
-#app .content{
-  border:1px solid rgba(0,0,0,.10);
-  background: var(--rr-content-bg);
-  border-radius: var(--rr-radius);
-  padding:12px;
-  margin-bottom:16px;
-
-  color: rgba(0,0,0,.88);
-}
-#app .content *{ color: inherit; }
-#app .content a{ color: rgba(0,0,0,.88); text-decoration: underline; }
-
-#app .content :first-child{ margin-top:0; }
-#app .content p{ line-height:1.6; }
-#app .content h1,#app .content h2,#app .content h3{ margin:.6em 0 .35em; }
-#app .content ul,#app .content ol{ padding-left: 1.2em; }
-#app .content blockquote{
-  margin: 10px 0;
-  padding: 8px 10px;
-  border-left: 3px solid rgba(0,0,0,.25);
-  opacity:.85;
-  background: rgba(0,0,0,.03);
-  border-radius: 12px;
-}
-
-/* Collapsed review text (5 lines) + fade */
-#app #panelContent{ position: relative; }
-#app #panelContent.is-collapsed{
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 5;
-  overflow: hidden;
-}
-#app #panelContent.is-collapsed::after{
-  content: "";
-  position: absolute;
-  left: 0; right: 0; bottom: 0;
-  height: 3.2em;
-  pointer-events: none;
-  background: linear-gradient(
-    to bottom,
-    rgba(255,255,255,0),
-    var(--rr-content-bg) 70%,
-    var(--rr-content-bg) 100%
-  );
-}
-
-/* Read more button */
-#app .readMoreBtn{
-  margin-top: 10px;
-  margin-left: auto;
-  display: inline-flex;
-  align-self: flex-end;
-
-  background: rgba(0,0,0,.06);
-  border: 1px solid rgba(0,0,0,.18);
-  border-radius: 12px;
-  padding: 10px 12px;
-  cursor: pointer;
-  font-weight: 600;
-}
-#app .readMoreBtn:hover{ border-color: rgba(0,0,0,.35); }
-#app .readMoreBtn[hidden]{ display:none !important; }
-
-/* =========================================================
-   Comments
-   ========================================================= */
-#app .comments{ margin-top:14px; color: rgba(0,0,0,.88); }
-#app .comments__header{ display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
-#app .comments__title{ font-weight:700; }
-#app .comments__disclaimer{ font-size:12px; opacity:.75; }
-
-#app .comments__list{ display:flex; flex-direction:column; gap:10px; margin-bottom:14px; }
-#app .comment{
-  border:1px solid rgba(0,0,0,.10);
-  background: rgba(255,255,255,.92);
-  border-radius: var(--rr-radius);
-  padding:10px;
-  color: rgba(0,0,0,.88);
-}
-#app .comment__top{
-  display:flex;
-  gap:10px;
-  align-items:baseline;
-  justify-content:space-between;
-}
-#app .comment__name{ font-weight:600; }
-#app .comment__time{ opacity:.7; font-size:12px; }
-#app .comment__body{ margin-top:8px; white-space:pre-wrap; line-height:1.45; }
-
-#app .commentForm{
-  border:1px solid rgba(0,0,0,.10);
-  background: rgba(255,255,255,.92);
-  border-radius: var(--rr-radius);
-  padding:12px;
-  color: rgba(0,0,0,.88);
-}
-
-#app .row{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
-#app .field{ display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
-#app .field span{ font-size:12px; opacity:.75; }
-#app .field input, #app .field textarea{
-  width:100%;
-  background: var(--rr-field-bg);
-  border:1px solid var(--rr-field-border);
-  border-radius: 12px;
-  padding:10px 12px;
-  outline:none;
-}
-#app .field input:focus, #app .field textarea:focus{
-  border-color: var(--rr-border-strong);
-  box-shadow: 0 0 0 3px rgba(0,0,0,.08);
-}
-#app .field textarea{ min-height: 96px; resize: vertical; }
-
-#app .btn{
-  background: rgba(0,0,0,.06);
-  border: 1px solid var(--rr-field-border);
-  border-radius: 12px;
-  padding:10px 12px;
-  cursor:pointer;
-  font-weight:600;
-}
-#app .btn:hover{ border-color: rgba(0,0,0,.35); }
-#app .btn:disabled{ opacity:.6; cursor:not-allowed; }
-#app .commentForm__actions{ display:flex; align-items:center; gap:10px; }
-#app .formNote{ opacity:.75; font-size:12px; }
-
-/* =========================================================
-   Modal (slideshow) — SINGLE SOURCE OF TRUTH
-   ========================================================= */
-
-/* Always above everything, and does not steal clicks when closed */
-#app .modal{
-  position: fixed;
-  inset: 0;
-  z-index: var(--rr-z-modal);
-  display: block;           /* we control visibility via .is-open */
-  pointer-events: none;     /* closed: no clicks */
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 140ms ease, visibility 0s linear 140ms;
-}
-#app .modal.is-open{
-  pointer-events: auto;
-  opacity: 1;
-  visibility: visible;
-  transition: opacity 140ms ease, visibility 0s;
-}
-
-/* Overlay */
-#app .modal__overlay{
-  position:absolute;
-  inset:0;
-  background: rgba(0,0,0,.65);
-  backdrop-filter: blur(8px);
-}
-
-/* Dialog */
-#app .modal__dialog{
-  position:absolute;
-  left:50%;
-  top:50%;
-  transform: translate(-50%,-50%);
-  width: min(1100px, calc(100% - 16px));
-  background: rgba(255,255,255,.96);
-  border:1px solid rgba(0,0,0,.14);
-  border-radius: var(--rr-radius2);
-  box-shadow: var(--rr-shadow);
-  padding: 10px;
-  max-height: calc(100dvh - var(--rr-header-offset, 0px) - 24px);
-}
-
-/* Close */
-#app .modal__close{
-  position:absolute;
-  right:12px;
-  top:12px;
-  z-index: 4;
-}
-
-/* Media stage */
-#app .modal__media{
-  position: relative;
-  display: block;
-  padding: 0;
+#restaurant-reviews-admin .rra-header p {
   margin: 0;
-}
-
-/* Optional: subtle edge gradient so arrows read better */
-#app .modal__media::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  pointer-events:none;
-  border-radius: 18px;
-  background:
-    linear-gradient(to right,
-      rgba(0,0,0,.10),
-      rgba(0,0,0,0) 22%,
-      rgba(0,0,0,0) 78%,
-      rgba(0,0,0,.10)
-    );
-  opacity: .55;
-}
-
-/* Image takes almost all available height */
-#app .modal__media img,
-#app #modalImage{
-  width: 100%;
-  height: min(78vh, 760px);
-  object-fit: contain;
-  display: block;
-  border-radius: 18px;
-  background: rgba(0,0,0,.03);
-  border: 1px solid rgba(0,0,0,.12);
-}
-
-/* Arrows on top of image */
-#app .navBtn,
-#app #modalPrevBtn,
-#app #modalNextBtn{
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 3;
-
-  width: 44px;
-  height: 44px;
-  border-radius: 999px;
-
-  background: rgba(255,255,255,.88);
-  border: 1px solid rgba(0,0,0,.18);
-  box-shadow: 0 10px 26px rgba(0,0,0,.18);
-
-  display: grid;
-  place-items: center;
-  cursor:pointer;
-  font-size: 24px;
-  touch-action: manipulation;
-}
-#app #modalPrevBtn{ left: 10px; right: auto; }
-#app #modalNextBtn{ right: 10px; left: auto; }
-
-/* Caption/counter */
-#app .modal__caption{
-  padding: 0 12px 10px 12px;
-  opacity: .95;
-  font-size: 18px;
+  opacity: 0.8;
   line-height: 1.35;
 }
-#app .modal__counter{
-  padding: 0 12px 10px 12px;
-  opacity:.7;
-  font-size: 12px;
+
+#restaurant-reviews-admin .rra-layout {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 18px;
+  margin-top: 14px;
 }
 
-/* =========================================================
-   InfoWindow
-   ========================================================= */
-#app .rr-iw{ font-size: 13px; line-height: 1.35; }
-#app .rr-iw__title{ font-weight: 700; margin-bottom: 4px; }
-#app .rr-iw__meta{ opacity:.85; display:flex; gap:8px; align-items:baseline; margin-bottom: 4px; }
-#app .rr-iw__sub{ opacity:.75; margin-bottom: 6px; }
-#app .rr-iw__link a{ font-weight: 600; }
-
-/* =========================================================
-   Responsive
-   ========================================================= */
-@media (max-width: 980px){
-  /* Stack everything */
-  #app .main,
-  #app .main.has-panel{
+@media (max-width: 980px) {
+  #restaurant-reviews-admin .rra-layout {
     grid-template-columns: 1fr;
-    gap: 12px;
-  }
-
-  #app .mobileToggle{ display:flex; }
-  #app .row{ grid-template-columns: 1fr; }
-
-  /* On mobile, let map height rule (avoid square pushing layout) */
-  #app #colMap{
-    min-height: var(--rr-map-min-h-mobile);
-    aspect-ratio: auto;
-    height: clamp(280px, 48vh, 520px);
-    max-height: 520px;
-  }
-
-  /* When panel open: hide list/map */
-  #app .main.has-panel #colList,
-  #app .main.has-panel #colMap{
-    display: none !important;
-  }
-
-  /* Panel overlay on mobile */
-  #app #reviewPanel{
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    top: var(--rr-header-offset, 0px);
-    height: calc(100dvh - var(--rr-header-offset, 0px));
-    z-index: var(--rr-z-panel);
-    overflow: auto;
-    transform: translateY(10px);
-  }
-
-  /* Modal respects Squarespace header offset */
-  #app .modal{
-    top: var(--rr-header-offset, 0px);
-    height: calc(100dvh - var(--rr-header-offset, 0px));
-  }
-  #app .modal__dialog{
-    max-height: calc(100dvh - var(--rr-header-offset, 0px) - 24px);
-  }
-
-  /* Mobile overflow fixes */
-  #app .topbar{
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-
-  #app .topbar__left,
-  #app .topbar__right{
-    width: 100%;
-  }
-
-  #app .controls{
-    width: 100%;
-    justify-content: flex-start;
   }
 }
 
-/* Very small screens: 2-col control grid + distance row layout */
-@media (max-width: 520px){
-  #app .controls .control{
-    width: calc(50% - 6px);
-  }
+#restaurant-reviews-admin .rra-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
 
-  #app .mobileToggle{
-    flex-wrap: wrap;
-    justify-content: flex-end;
+@media (max-width: 520px) {
+  #restaurant-reviews-admin .rra-row {
+    grid-template-columns: 1fr;
   }
+}
 
-  /* Force distance block to be its own row inside controls */
-  #app .controls .distanceToggle{
-    flex: 0 0 100%;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    align-items: center;
-  }
+/* ---- Form elements ---- */
+#restaurant-reviews-admin .rra-field-group {
+  margin-bottom: 12px;
+}
 
-  /* Label on its own row */
-  #app .controls .distanceToggle .distanceLabel{
-    flex: 0 0 100%;
-    margin: 0 0 2px 0;
-    opacity: .75;
-  }
+#restaurant-reviews-admin .rra-field-label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin: 0 0 6px;
+}
 
-  /* Two buttons on same row */
-  #app .controls .distanceToggle .rr-toggle{
-    flex: 1 1 0;
-    min-width: 0;
-  }
+#restaurant-reviews-admin input[type="text"],
+#restaurant-reviews-admin select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  background: rgba(255, 255, 255, 0.98);
+  font: inherit;
+  font-size: 0.95rem;
+}
 
-  /* Modal full-height on mobile for max image area */
-  #app .modal__dialog{
-    width: 100%;
-    height: calc(100dvh - var(--rr-header-offset, 0px));
-    left: 0;
-    top: 0;
-    transform: none;
-    border-radius: 0;
-    padding: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
+#restaurant-reviews-admin input[type="text"]:focus,
+#restaurant-reviews-admin select:focus {
+  outline: none;
+  border-color: rgba(0, 0, 0, 0.55);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.08);
+}
 
-  #app .modal__media{
-    flex: 1;
-    min-height: 0;
-  }
+/* ---- Selected restaurant ---- */
+#restaurant-reviews-admin .rra-selected-name {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: rgba(0, 0, 0, 0.03);
+  font-weight: 700;
+  font-size: 1.05rem;
+}
 
-  #app .modal__media img,
-  #app #modalImage{
-    height: 100%;
-    max-height: none;
-    border-radius: 16px;
-  }
+/* ---- Buttons ---- */
+#restaurant-reviews-admin .rra-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 10px;
+}
 
-  /* Bigger tap targets AND FIXED positioning (no overlap) */
-  #app #modalPrevBtn{
-    width: 48px;
-    height: 48px;
-    left: 10px;
-    right: auto;
+#restaurant-reviews-admin .rra-btn {
+  appearance: none;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 999px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+#restaurant-reviews-admin .rra-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+#restaurant-reviews-admin .rra-btn--primary {
+  background: rgba(0, 0, 0, 0.88);
+  color: #fff;
+  border-color: rgba(0, 0, 0, 0.88);
+}
+
+#restaurant-reviews-admin .rra-btn--primary:hover {
+  background: rgba(0, 0, 0, 0.95);
+}
+
+#restaurant-reviews-admin .rra-btn--danger {
+  background: rgba(176, 0, 32, 0.92);
+  color: #fff;
+  border-color: rgba(176, 0, 32, 0.92);
+}
+
+#restaurant-reviews-admin .rra-btn--danger:hover {
+  background: rgba(176, 0, 32, 1);
+}
+
+/* ---- Muted text ---- */
+#restaurant-reviews-admin .rra-muted {
+  opacity: 0.75;
+  font-size: 0.9rem;
+}
+
+/* =========================================================
+   PATCH 1: Karta – större höjd + stabil styling
+   (Gör denna regel mest specifik så den inte blir överskriven)
+   ========================================================= */
+#restaurant-reviews-admin #rra-map {
+  height: 70vh;
+  min-height: 550px;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+@media (max-width: 900px) {
+  #restaurant-reviews-admin #rra-map {
+    height: 55vh;
+    min-height: 360px;
   }
-  #app #modalNextBtn{
-    width: 48px;
-    height: 48px;
-    right: 10px;
-    left: auto;
-  }
+}
+
+/* =========================================================
+   Quill editor – klickbar, rimlig höjd, snyggt in i kortet
+   ========================================================= */
+#restaurant-reviews-admin #rra-comment-toolbar {
+  border-radius: 12px 12px 0 0;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.96);
+}
+
+#restaurant-reviews-admin .ql-toolbar.ql-snow {
+  border: none;
+  border-radius: 12px 12px 0 0;
+}
+
+#restaurant-reviews-admin #rra-comment-editor {
+  min-height: 180px;
+  border-radius: 0 0 12px 12px;
+}
+
+#restaurant-reviews-admin .ql-container.ql-snow {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  background: rgba(255, 255, 255, 0.98);
+}
+
+/* =========================================================
+   Bilder – dropzone + grid med kort + captions (skrivbara)
+   ========================================================= */
+#restaurant-reviews-admin .rra-images-drop {
+  border: 1px dashed rgba(0, 0, 0, 0.25);
+  border-radius: 14px;
+  padding: 14px;
+  background: rgba(0, 0, 0, 0.01);
+  cursor: pointer;
+  user-select: none;
+}
+
+#restaurant-reviews-admin .rra-images-preview {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.75rem;
+  margin-top: 10px;
+}
+
+/* Varje bild = “kort” */
+#restaurant-reviews-admin .rra-image-thumb {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.55rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.95);
+  overflow: visible;
+  height: auto;
+  position: relative;
+}
+
+/* Bildyta */
+#restaurant-reviews-admin .rra-image-thumb img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  display: block;
+  border-radius: 0.6rem;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+/* Delete-knapp över bilden */
+#restaurant-reviews-admin .rra-image-thumb button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  line-height: 28px;
+  text-align: center;
+}
+
+#restaurant-reviews-admin .rra-image-thumb button:hover {
+  background: rgba(0, 0, 0, 0.9);
+}
+
+/* Caption-input (stor, skrivbar) */
+#restaurant-reviews-admin .rra-image-caption {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  border-radius: 0.6rem;
+  font-family: inherit;
+  font-size: 0.95rem;
+  background: rgba(255, 255, 255, 0.98);
+}
+
+#restaurant-reviews-admin .rra-image-caption:focus {
+  outline: none;
+  border-color: rgba(0, 0, 0, 0.55);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.08);
+}
+
+/* =========================================================
+   Recensionslista / kommentarslista – lätt “städning”
+   (om du redan har egna regler kan du behålla dem, men detta är safe)
+   ========================================================= */
+#restaurant-reviews-admin .rra-list {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 14px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+#restaurant-reviews-admin .rra-list-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+#restaurant-reviews-admin .rra-list-item:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+#restaurant-reviews-admin .rra-list-item.active {
+  background: rgba(0, 0, 0, 0.07);
+}
+
+#restaurant-reviews-admin .rra-list-item-title {
+  font-weight: 700;
+}
+
+#restaurant-reviews-admin .rra-list-item-meta {
+  opacity: 0.75;
+  font-size: 0.88rem;
+}
+
+/* Kommentarsmoderering */
+#restaurant-reviews-admin .rra-comment-item {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  margin: 10px 0;
+}
+
+#restaurant-reviews-admin .rra-comment-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.9rem;
+  opacity: 0.85;
+  margin-bottom: 8px;
+}
+
+#restaurant-reviews-admin .rra-comment-body {
+  white-space: pre-wrap;
+  line-height: 1.35;
+  margin-bottom: 10px;
+}
+
+#restaurant-reviews-admin .rra-comment-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
