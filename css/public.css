@@ -841,6 +841,35 @@ body{ margin:0; }
 #app #modalPrevBtn{ left: 10px; }
 #app #modalNextBtn{ right: 10px; }
 
+/* --- Desktop: round the REAL visible image (contain), not the container --- */
+#app .modal__media{
+  position: relative;            /* keep for arrows + gradient */
+  display: flex;                 /* center the image box */
+  align-items: center;
+  justify-content: center;
+
+  /* remove "frame rounding" here; the image will own the rounding */
+  border-radius: 0;
+  overflow: visible;
+  background: transparent;
+  border: 0;
+}
+
+/* The IMG becomes its own visible box (auto size), bounded by max-* */
+#app #modalImage{
+  display: block;
+
+  width: auto !important;        /* override earlier width:100% rules */
+  height: auto !important;       /* override earlier fixed heights */
+  max-width: 100%;
+  max-height: min(78vh, 760px);
+
+  object-fit: contain !important;
+  border-radius: 18px !important;
+  background: rgba(0,0,0,.03);
+  border: 1px solid rgba(0,0,0,.12);
+}
+
 /* Optional: subtle edge gradient so arrows read better on light photos */
 #app .modal__media::before{
   content:"";
@@ -931,12 +960,17 @@ body{ margin:0; }
   }
 
   #app #slideshowModal #modalImage{
-    width: 100% !important;
-    height: 100% !important;
-    max-height: none !important;
-    object-fit: contain !important;
-  }
+    width: auto !important;
+    height: auto !important;
 
+    max-width: 100% !important;
+    max-height: calc(100dvh - 140px) !important; /* justera vid behov */
+    object-fit: contain !important;
+
+    border-radius: 18px !important;
+    background: rgba(0,0,0,.03);
+    border: 1px solid rgba(0,0,0,.12);
+  }
   /* Close button stays at top-right */
   #app #slideshowModal .modal__close{
     position: absolute !important;
@@ -955,6 +989,8 @@ body{ margin:0; }
     left: auto !important;
   }
 }
+
+
 /* =========================================================
    HARD z-index fix (must be last)
    ========================================================= */
