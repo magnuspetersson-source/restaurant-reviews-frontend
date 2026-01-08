@@ -1,0 +1,59 @@
+<div
+  id="restaurant-reviews-admin"
+  data-api-base="https://restaurant-reviews-backend-xi.vercel.app"
+></div>
+
+<link
+  rel="stylesheet"
+  href="https://magnuspetersson-source.github.io/restaurant-reviews-frontend/css/admin.css"
+/>
+
+<script src="https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js/config.js" defer></script>
+
+<script>
+  (function () {
+    const root = document.getElementById("restaurant-reviews-admin");
+    const apiBase = (root?.dataset?.apiBase || "").replace(/\/+$/, "");
+    if (!apiBase) {
+      root.innerHTML = "<div style='padding:12px'>Saknar data-api-base</div>";
+      return;
+    }
+
+    async function getAdminToken() {
+      const res = await fetch(apiBase + "/api/public-config?cb=" + Date.now());
+      if (!res.ok) throw new Error("public-config HTTP " + res.status);
+      const json = await res.json();
+      if (!json.adminToken) throw new Error("Saknar adminToken i public-config");
+      return json.adminToken;
+    }
+
+    (async () => {
+      try {
+        // Vänta tills config.js är klar (homeLat/homeLng/mapsKey)
+        if (window.RR_CONFIG_READY) {
+          await window.RR_CONFIG_READY;
+        }
+
+        // Säkerställ config-objekt
+        window.RR_CONFIG = window.RR_CONFIG || {};
+        window.RR_CONFIG.backendBaseUrl = apiBase;
+
+        // Hämta adminToken från Vercel
+        window.RR_CONFIG.adminToken = await getAdminToken();
+
+        // Starta admin
+        const s = document.createElement("script");
+        s.src =
+          "https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js/admin.js";
+        s.defer = true;
+        document.body.appendChild(s);
+      } catch (e) {
+        console.error("[RR admin] boot failed:", e);
+        root.innerHTML =
+          "<div style='padding:12px;opacity:.85'>Kunde inte starta admin: " +
+          (e?.message || String(e)) +
+          "</div>";
+      }
+    })();
+  })();
+</script>

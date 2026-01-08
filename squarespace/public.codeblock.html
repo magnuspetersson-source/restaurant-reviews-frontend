@@ -1,0 +1,64 @@
+<div
+  id="app"
+  data-api-base="https://restaurant-reviews-backend-xi.vercel.app"
+></div>
+
+<link rel="stylesheet" href="https://magnuspetersson-source.github.io/restaurant-reviews-frontend/css/public.css" />
+
+<style>
+  #app { position: relative; z-index: 10; }
+  #colList, #reviewList { position: relative; z-index: 20; }
+  #reviewPanel { z-index: 999999 !important; }
+  #slideshowModal { z-index: 1000000 !important; }
+  .card { pointer-events: auto; }
+</style>
+
+<script>
+  (function () {
+    const BASE = "https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js/";
+
+    function loadScript(path) {
+      return new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = BASE + path;
+        s.async = false; // keep order
+        s.onload = resolve;
+        s.onerror = () => reject(new Error("Load failed: " + path));
+        document.body.appendChild(s);
+      });
+    }
+
+    (async () => {
+      try {
+        // 1) config.js first (it will fetch googleMapsApiKey via /api/public-config)
+        await loadScript("config.js");
+
+        // 2) wait for config to finish (RR_PUBLIC_CONFIG ready)
+        if (window.RR_CONFIG_READY) await window.RR_CONFIG_READY;
+
+        // 3) load the rest in strict order
+        const scripts = [
+          "utils/dom.js",
+          "utils/format.js",
+          "utils/sanitize.js",
+          "api.js",
+          "router.js",
+          "state.js",
+          "map/map.js",
+          "map/markers.js",
+          "ui/list.js",
+          "ui/panel.js",
+          "ui/comments.js",
+          "ui/slideshowModal.js",
+          "app.js"
+        ];
+
+        for (const p of scripts) await loadScript(p);
+      } catch (e) {
+        console.error("[RR public] boot failed:", e);
+        const el = document.getElementById("app");
+        if (el) el.innerHTML = "<div style='padding:12px;opacity:.85'>Kunde inte starta public: " + (e.message || e) + "</div>";
+      }
+    })();
+  })();
+</script>
