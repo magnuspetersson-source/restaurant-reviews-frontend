@@ -1,62 +1,83 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="sv">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Restaurant Reviews (Local test)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Recensioner (Local test)</title>
+  <link rel="icon" href="data:," />
 
-  <!-- Samma CSS som Squarespace-kodblocket -->
-  <link rel="stylesheet" href="https://magnuspetersson-source.github.io/restaurant-reviews-frontend/css/public.css" />
-</head>
-<body>
-
-  <div id="app" data-api-base="https://restaurant-reviews-backend-xi.vercel.app"></div>
-
+  <!-- CSS: local with cache-bust -->
   <script>
-  (function () {
-    var JS_BASE = "https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js";
+    (function () {
+      const v = Date.now();
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = "./css/public.css?v=" + v;
+      document.head.appendChild(link);
+      console.log("[RR public] CSS:", link.href);
+    })();
+  </script>
+</head>
 
-    function loadScript(src) {
-      return new Promise(function (resolve, reject) {
-        var s = document.createElement("script");
+<body>
+  <div id="app"></div>
+
+  <!-- Blockerande local config (endast lokalt) -->
+  <script>
+    (function () {
+      const host = location.hostname;
+      const isLocal = host === "localhost" || host === "127.0.0.1";
+      if (!isLocal) return;
+
+      const v = Date.now();
+      document.write('<script src="' + location.origin + '/js/config.local.js?v=' + v + '"><\/script>');
+      console.log("[RR public] Injected blocking config.local.js");
+    })();
+  </script>
+
+  <!-- JS loader (local) -->
+  <script>
+    (function () {
+      const host = location.hostname;
+      const isLocal = host === "localhost" || host === "127.0.0.1";
+
+      const JS_BASE = isLocal
+        ? (location.origin + "/js")
+        : "https://magnuspetersson-source.github.io/restaurant-reviews-frontend/js";
+
+      const v = Date.now();
+
+      const files = [
+        "config.js",
+        "utils/dom.js",
+        "utils/format.js",
+        "utils/sanitize.js",
+        "state.js",
+        "router.js",
+        "api.js",
+        "map/map.js",
+        "map/markers.js",
+        "ui/list.js",
+        "ui/panel.js",
+        "ui/comments.js",
+        "ui/slideshowModal.js",
+        "app.js"
+      ];
+
+      function load(i) {
+        if (i >= files.length) return;
+        const src = JS_BASE + "/" + files[i] + "?v=" + v;
+        const s = document.createElement("script");
         s.src = src;
         s.defer = true;
-        s.onload = resolve;
-        s.onerror = reject;
-        document.head.appendChild(s);
-      });
-    }
+        s.onload = () => load(i + 1);
+        s.onerror = () => console.error("[RR public] Missing:", src);
+        document.body.appendChild(s);
+      }
 
-    // Lokal config (IGNORERAS av git)
-    loadScript("/js/config.local.js")
-      .then(function () { console.log("[RR] Loaded /js/config.local.js"); })
-      .catch(function () { console.log("[RR] No /js/config.local.js (ok in prod)"); })
-      .finally(function () {
-        var scripts = [
-          JS_BASE + "/config.js",
-          JS_BASE + "/utils/dom.js",
-          JS_BASE + "/utils/format.js",
-          JS_BASE + "/utils/sanitize.js",
-          JS_BASE + "/api.js",
-          JS_BASE + "/router.js",
-          JS_BASE + "/state.js",
-          JS_BASE + "/map/map.js",
-          JS_BASE + "/map/markers.js",
-          JS_BASE + "/ui/list.js",
-          JS_BASE + "/ui/panel.js",
-          JS_BASE + "/ui/comments.js",
-          JS_BASE + "/ui/slideshowModal.js",
-          JS_BASE + "/app.js"
-        ];
-
-        scripts.forEach(function (src) {
-          var s = document.createElement("script");
-          s.src = src;
-          s.defer = true;
-          document.head.appendChild(s);
-        });
-      });
-  })();
+      console.log("[RR public] JS_BASE:", JS_BASE);
+      load(0);
+    })();
   </script>
 </body>
 </html>

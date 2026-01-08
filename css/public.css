@@ -787,3 +787,195 @@ body{ margin:0; }
     min-width: 0;
   }
 }
+/* =========================================================
+   Slideshow modal: maximize image area + overlay arrows
+   ========================================================= */
+
+/* Make dialog use more of the viewport */
+#app .modal__dialog{
+  width: min(1100px, calc(100% - 16px));
+  padding: 10px;
+}
+
+/* Media area becomes a "stage" */
+#app .modal__media{
+  position: relative;
+  display: block;           /* override grid */
+  padding: 0;
+  margin: 0;
+}
+
+/* Image takes almost all available height */
+#app .modal__media img,
+#app #modalImage{
+  width: 100%;
+  height: min(78vh, 760px); /* desktop default */
+  object-fit: contain;
+  display: block;
+  border-radius: 18px;
+}
+
+/* Arrows on top of image (centered vertically) */
+#app .modal__media .navBtn,
+#app #modalPrevBtn,
+#app #modalNextBtn{
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+
+  /* keep your existing button style but more "overlay" */
+  background: rgba(255,255,255,.88);
+  border: 1px solid rgba(0,0,0,.18);
+  box-shadow: 0 10px 26px rgba(0,0,0,.18);
+
+  display: grid;
+  place-items: center;
+  touch-action: manipulation;
+}
+
+#app #modalPrevBtn{ left: 10px; }
+#app #modalNextBtn{ right: 10px; }
+
+/* Optional: subtle edge gradient so arrows read better on light photos */
+#app .modal__media::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  border-radius: 18px;
+  background:
+    linear-gradient(to right, rgba(0,0,0,.10), rgba(0,0,0,0) 22%, rgba(0,0,0,0) 78%, rgba(0,0,0,.10));
+  opacity: .55;
+}
+
+/* Mobile: make the modal close to full-screen for maximum image area */
+@media (max-width: 520px){
+  #app .modal__dialog{
+    width: 100%;
+    height: calc(100dvh - var(--rr-header-offset, 0px));
+    left: 0;
+    top: 0;
+    transform: none;
+    border-radius: 0;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  /* Give image almost all vertical space */
+  #app .modal__media{
+    flex: 1;
+    min-height: 0;
+  }
+
+  #app .modal__media img,
+  #app #modalImage{
+    height: 100%;
+    max-height: none;
+    border-radius: 16px;
+  }
+
+  /* Bigger tap targets on mobile */
+  #app #modalPrevBtn,
+  #app #modalNextBtn{
+    width: 48px;
+    height: 48px;
+    left: 10px;
+    right: 10px;
+  }
+}
+/* =========================================================
+   Mobile fullscreen modal (anchored, cannot float to top)
+   ========================================================= */
+@media (max-width: 520px){
+  /* Modal container always covers the viewport under header offset */
+  #app #slideshowModal.modal{
+    top: var(--rr-header-offset, 0px) !important;
+    height: calc(100dvh - var(--rr-header-offset, 0px)) !important;
+  }
+
+  /* Fullscreen dialog */
+  #app #slideshowModal .modal__dialog{
+    position: absolute !important;
+    inset: 0 !important;          /* 🔑 fills container */
+    left: 0 !important;
+    right: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+
+    transform: none !important;   /* 🔑 disable centering transforms */
+    margin: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: none !important;
+
+    border-radius: 0 !important;
+    padding: 12px !important;
+
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+
+  /* Media area takes almost all height */
+  #app #slideshowModal .modal__media{
+    position: relative !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+  }
+
+  #app #slideshowModal #modalImage{
+    width: 100% !important;
+    height: 100% !important;
+    max-height: none !important;
+    object-fit: contain !important;
+  }
+
+  /* Close button stays at top-right */
+  #app #slideshowModal .modal__close{
+    position: absolute !important;
+    top: 12px !important;
+    right: 12px !important;
+    z-index: 4 !important;
+  }
+
+  /* Arrows: fixed to left/right over image (no overlap) */
+  #app #modalPrevBtn{
+    left: 10px !important;
+    right: auto !important;
+  }
+  #app #modalNextBtn{
+    right: 10px !important;
+    left: auto !important;
+  }
+}
+/* =========================================================
+   HARD z-index fix (must be last)
+   ========================================================= */
+#app{ isolation: isolate; }
+
+#app #slideshowModal{
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 100000 !important; /* near max int, beats Squarespace header */
+}
+
+#app #slideshowModal .modal__overlay{
+  z-index: 100000 !important;
+}
+
+#app #slideshowModal .modal__dialog{
+  z-index: 100000 !important;
+}
+
+#app #slideshowModal .modal__close,
+#app #slideshowModal #modalPrevBtn,
+#app #slideshowModal #modalNextBtn{
+  z-index: 100000 !important;
+}

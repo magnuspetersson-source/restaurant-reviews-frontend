@@ -51,7 +51,59 @@
     if (!n) return;
     actions.setSlideshowIndex((s.index + 1) % n);
   }
-
+  
+  function enableSwipeOnModal({ onPrev, onNext }) {
+    const media = document.querySelector("#slideshowModal .modal__media");
+    if (!media) return;
+  
+    let startX = 0;
+    let startY = 0;
+    let tracking = false;
+  
+    const THRESHOLD = 40; // px horizontal swipe
+    const RESTRAINT = 60; // px vertical tolerance
+  
+    // Allow vertical scroll but capture horizontal swipes
+    media.style.touchAction = "pan-y";
+  
+    media.addEventListener("touchstart", (e) => {
+      if (!e.touches || e.touches.length !== 1) return;
+      const t = e.touches[0];
+      startX = t.clientX;
+      startY = t.clientY;
+      tracking = true;
+    }, { passive: true });
+  
+    media.addEventListener("touchmove", (e) => {
+      if (!tracking || !e.touches || e.touches.length !== 1) return;
+      const t = e.touches[0];
+      const dx = t.clientX - startX;
+      const dy = t.clientY - startY;
+  
+      // If horizontal swipe, prevent page scroll
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+  
+    media.addEventListener("touchend", (e) => {
+      if (!tracking) return;
+      tracking = false;
+  
+      const t = e.changedTouches && e.changedTouches[0];
+      if (!t) return;
+  
+      const dx = t.clientX - startX;
+      const dy = t.clientY - startY;
+  
+      if (Math.abs(dy) > RESTRAINT) return;
+      if (Math.abs(dx) < THRESHOLD) return;
+  
+      if (dx < 0) onNext?.();
+      else onPrev?.();
+    }, { passive: true });
+  }
+  
   function wireModal() {
     qs("#modalOverlay").addEventListener("click", () => window.RR_STATE.actions.closeSlideshow());
     qs("#modalCloseBtn").addEventListener("click", () => window.RR_STATE.actions.closeSlideshow());
@@ -65,6 +117,7 @@
       if (e.key === "ArrowLeft") prev();
       if (e.key === "ArrowRight") next();
     });
+    enableSwipeOnModal({ onPrev: prev, onNext: next });
   }
 
   window.RR_UI_MODAL = { renderSlideshow, wireModal };
